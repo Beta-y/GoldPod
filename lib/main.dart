@@ -18,10 +18,10 @@ import 'package:bill_app/models/gold_transaction.dart';
 
 /*
 构建:
-flutter clean
-flutter pub get
 cd android
 ./gradlew clean
+flutter clean
+flutter pub get
 cd ..
 flutter run
 
@@ -29,12 +29,12 @@ flutter run
 adb uninstall com.example.bill_app
 
 发布:
-flutter clean
-flutter pub get
 cd android
 ./gradlew clean
+flutter clean
+flutter pub get
 cd ..
-flutter build apk --split-per-abi
+flutter build apk --release
 */
 
 void main() async {
