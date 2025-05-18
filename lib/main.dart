@@ -16,6 +16,14 @@ import 'package:bill_app/models/adapters/hive_adapters.dart';
 import 'package:bill_app/models/ledger.dart';
 import 'package:bill_app/models/gold_transaction.dart';
 
+/*
+flutter clean
+flutter pub get
+cd android
+./gradlew clean
+flutter run
+*/
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
