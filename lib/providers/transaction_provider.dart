@@ -101,6 +101,9 @@ class TransactionProvider extends ChangeNotifier {
 
   // 优化后的仓位计算方法
   List<InventoryItem> calculateInventory() {
+    if (_strategy == InventoryStrategy.average) {
+      return _calculateAverageCost();
+    }
     final buys = _getSortedBuys();
     final sells =
         transactions.where((t) => t.type == TransactionType.sell).toList();
@@ -130,6 +133,39 @@ class TransactionProvider extends ChangeNotifier {
     ];
   }
 
+// 新增平均成本法计算
+  List<InventoryItem> _calculateAverageCost() {
+    final buys =
+        transactions.where((t) => t.type == TransactionType.buy).toList();
+    final sells =
+        transactions.where((t) => t.type == TransactionType.sell).toList();
+    if (buys.isEmpty) return [];
+
+    // 1. 计算总买入克重和总成本
+    final totalBuyWeight = buys.fold(0.0, (sum, buy) => sum + buy.weight);
+    // final totalBuyCost =
+    //     buys.fold(0.0, (sum, buy) => sum + (buy.weight * buy.price));
+
+    // 2. 计算总卖出克重
+    final totalSellWeight = sells.fold(0.0, (sum, t) => sum + t.weight);
+
+    // 3. 计算剩余总克重和平均成本
+    final remainingTotalWeight = totalBuyWeight - totalSellWeight;
+    // final avgPrice = totalBuyCost / totalBuyWeight;
+
+    // 4. 按比例分摊剩余克重到各买入交易
+    final remainingMap = <String, double>{};
+    for (final buy in buys) {
+      final originalRatio = buy.weight / totalBuyWeight;
+      remainingMap[buy.id] = max(0.0, remainingTotalWeight * originalRatio);
+    }
+    return [
+      for (final buy in buys)
+        if ((remainingMap[buy.id] ?? 0) > 0)
+          InventoryItem(buy, remainingMap[buy.id]!)
+    ];
+  }
+
   // 优化后的买入记录排序方法
   List<GoldTransaction> _getSortedBuys() {
     final buys =
@@ -148,6 +184,8 @@ class TransactionProvider extends ChangeNotifier {
       case InventoryStrategy.highest:
         buys.sort((a, b) => b.price.compareTo(a.price));
         break;
+      case InventoryStrategy.average:
+        break; // 平均价策略不需要排序，直接返回原列表
     }
     return buys;
   }
@@ -175,4 +213,5 @@ enum InventoryStrategy {
   lifo, // 先入后出
   lowest, // 低价先出
   highest, // 高价先出
+  average, // 卖出只减克重
 }

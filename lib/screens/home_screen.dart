@@ -2,9 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:bill_app/providers/theme_provider.dart';
 import 'package:bill_app/screens/gold_assistant_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart'; // 新增包
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
+  // 改为StatefulWidget
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _version = ''; // 版本号
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersionInfo();
+  }
+
+  Future<void> _loadVersionInfo() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _version = 'v${packageInfo.version}'; // 格式化为v1.0.0
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,16 +115,30 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: BottomAppBar(
-        height: 40,
+        height: 60,
+        padding: EdgeInsets.zero, // 清除默认padding
         color: Colors.transparent,
         elevation: 0,
         child: Center(
-          child: Text(
-            '© 2025 黄金交易助手 by Beta-y',
-            style: TextStyle(
-              fontSize: 12,
-              color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _version.isNotEmpty ? _version : '加载版本中...',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '© 2025 黄金交易助手 by Beta-y',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
+                ),
+              ),
+            ],
           ),
         ),
       ),

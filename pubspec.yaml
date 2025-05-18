@@ -20,6 +20,7 @@ dependencies:
   analyzer: ^6.0.0
   hive_generator: ^2.0.1
   build_runner: ^2.4.15
+  package_info_plus: ^8.3.0
 
 dev_dependencies:
   flutter_test:
@@ -36,4 +37,4 @@ flutter_launcher_icons:
   ios: true
   remove_alpha_ios: true # iOS去除透明背景
 
-version: 1.0.0+1
+version: 1.0.1+1

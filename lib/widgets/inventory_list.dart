@@ -30,7 +30,8 @@ class InventoryScreen extends StatelessWidget {
 
         // 仓位列表（自适应高度）
         Expanded(
-          child: _buildInventoryList(inventory, provider.currentStrategy),
+          child:
+              _buildInventoryList(context, inventory, provider.currentStrategy),
         ),
       ],
     );
@@ -129,7 +130,7 @@ class InventoryScreen extends StatelessWidget {
   }
 
   // 库存列表（支持空状态）
-  Widget _buildInventoryList(
+  Widget _buildInventoryList(BuildContext context,
       List<InventoryItem> inventory, InventoryStrategy strategy) {
     if (inventory.isEmpty) {
       return const Center(
@@ -150,16 +151,17 @@ class InventoryScreen extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.only(top: 8, bottom: 20),
       itemCount: inventory.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, __) => const SizedBox.shrink(),
       itemBuilder: (ctx, index) {
         final item = inventory[index];
-        return _buildInventoryItem(item, strategy);
+        return _buildInventoryItem(context, item, strategy);
       },
     );
   }
 
   // 单个库存项（支持交互）
-  Widget _buildInventoryItem(InventoryItem item, InventoryStrategy strategy) {
+  Widget _buildInventoryItem(
+      BuildContext context, InventoryItem item, InventoryStrategy strategy) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: InkWell(
@@ -190,10 +192,11 @@ class InventoryScreen extends StatelessWidget {
               // 第二行：价格和日期
               Row(
                 children: [
-                  _buildDetailChip(
-                      '单价', '${item.transaction.price.toStringAsFixed(2)}元'),
+                  _buildDetailChip(context, '单价',
+                      '${item.transaction.price.toStringAsFixed(2)}元'),
                   const SizedBox(width: 8),
                   _buildDetailChip(
+                    context,
                     '日期',
                     DateFormat('yyyy-MM-dd').format(item.transaction.date),
                   ),
@@ -216,16 +219,18 @@ class InventoryScreen extends StatelessWidget {
   }
 
   // 详情标签组件
-  Widget _buildDetailChip(String label, String value) {
+  Widget _buildDetailChip(BuildContext context, String label, String value) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         '$label: $value',
-        style: const TextStyle(fontSize: 12),
+        style: TextStyle(
+          fontSize: 12,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
       ),
     );
   }
@@ -252,8 +257,9 @@ class InventoryScreen extends StatelessWidget {
     return const {
       InventoryStrategy.fifo: '先进先出 (FIFO)',
       InventoryStrategy.lifo: '后进先出 (LIFO)',
-      InventoryStrategy.lowest: '最低价先出',
-      InventoryStrategy.highest: '最高价先出',
+      InventoryStrategy.lowest: '低价先出 (CIFO)',
+      InventoryStrategy.highest: '高价先出 (EIFO)',
+      InventoryStrategy.average: '均摊卖出 (AO)',
     }[strategy]!;
   }
 }
