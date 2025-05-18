@@ -7,9 +7,30 @@ import 'package:bill_app/screens/home_screen.dart';
 import 'package:bill_app/screens/gold_assistant_screen.dart';
 import 'package:bill_app/screens/edit_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:bill_app/models/adapters/hive_adapters.dart';
+
+// 添加Hive适配器导入
+import 'package:bill_app/models/ledger.dart';
+import 'package:bill_app/models/gold_transaction.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 初始化Hive
+  await Hive.initFlutter();
+
+  // 初始化安全存储和加密
+  const secureStorage = FlutterSecureStorage();
+  final (encryptionKey, encrypter) = await _initializeEncryption(secureStorage);
+
+  // 注册适配器
+  await HiveAdapters.registerAll();
+
+  // 打开加密的Hive盒子
+  await _openEncryptedBoxes(encryptionKey);
 
   // 初始化SharedPreferences
   final prefs = await SharedPreferences.getInstance();
@@ -22,12 +43,38 @@ void main() async {
           create: (_) => ThemeProvider()..initialize(isDarkMode),
         ),
         ChangeNotifierProvider(
-          create: (_) => TransactionProvider(),
+          create: (_) =>
+              TransactionProvider(encrypter: encrypter), // 使用正确的encrypter
         ),
       ],
       child: const GoldTradingApp(),
     ),
   );
+}
+
+// 新增的加密初始化方法
+Future<(String, encrypt.Encrypter)> _initializeEncryption(
+    FlutterSecureStorage secureStorage) async {
+  var encryptionKey = await secureStorage.read(key: 'encryption_key');
+  if (encryptionKey == null) {
+    final key = encrypt.Key.fromSecureRandom(32);
+    encryptionKey = key.base64;
+    await secureStorage.write(key: 'encryption_key', value: encryptionKey);
+  }
+  final key = encrypt.Key.fromBase64(encryptionKey!);
+  return (encryptionKey, encrypt.Encrypter(encrypt.AES(key)));
+}
+
+// 新增的打开加密Box方法
+Future<void> _openEncryptedBoxes(String encryptionKey) async {
+  final key = encrypt.Key.fromBase64(encryptionKey);
+  await Hive.openBox<Ledger>('ledgers',
+      encryptionCipher: HiveAesCipher(key.bytes));
+  final box = await Hive.openBox<GoldTransaction>('transactions',
+      encryptionCipher: HiveAesCipher(key.bytes));
+  debugPrint('当前记录数: ${box.length}');
+  debugPrint('当前记录数: ${box.length}');
+  debugPrint('所有键: ${box.keys}');
 }
 
 class GoldTradingApp extends StatelessWidget {

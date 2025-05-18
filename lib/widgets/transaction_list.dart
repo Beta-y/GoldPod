@@ -11,8 +11,7 @@ class TransactionListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final transactions =
-        context.watch<TransactionProvider>().ledgerTransactions;
+    final transactions = context.watch<TransactionProvider>().transactions;
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     final primaryColor =

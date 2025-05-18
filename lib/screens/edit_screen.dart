@@ -243,7 +243,7 @@ class _EditScreenState extends State<EditScreen> {
 
     final provider = Provider.of<TransactionProvider>(context, listen: false);
     if (widget.existingTransaction != null) {
-      provider.updateTransaction(widget.existingTransaction!.id, transaction);
+      provider.updateTransaction(transaction);
     } else {
       provider.addTransaction(transaction);
     }

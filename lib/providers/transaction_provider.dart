@@ -1,46 +1,108 @@
-import 'package:flutter/material.dart';
-import '../models/gold_transaction.dart';
+import 'package:flutter/foundation.dart';
+import 'package:hive/hive.dart';
+import 'package:encrypt/encrypt.dart' as encrypt; // 添加别名
+import 'package:bill_app/models/gold_transaction.dart';
 import 'dart:math';
 
 class TransactionProvider extends ChangeNotifier {
-  // 原始账目记录（用户手动操作）
-  final List<GoldTransaction> _ledger = [];
+  final Box<GoldTransaction> _transactionBox;
+  final encrypt.Encrypter _encrypter; // 使用完整限定名
+  List<GoldTransaction>? _cachedTransactions; // 缓存优化
 
-  // 当前仓位策略
+  TransactionProvider({required encrypt.Encrypter encrypter}) // 参数类型同步修改
+      : _encrypter = encrypter,
+        _transactionBox = Hive.box<GoldTransaction>('transactions');
+
+  List<GoldTransaction> get transactions {
+    return _transactionBox.values
+        .map(_decryptTransaction) // 使用统一解密方法
+        .toList();
+  }
+
+  // 修改：统一使用Hive作为数据源，移除_ledger
   InventoryStrategy _strategy = InventoryStrategy.fifo;
-
-  // 获取账目记录（只读）
-  List<GoldTransaction> get ledgerTransactions => [..._ledger];
 
   // 获取当前策略
   InventoryStrategy get currentStrategy => _strategy;
 
-  // 当前计算的库存结果
-  // List<InventoryItem> get currentInventory => calculateInventory();
-
-  // 添加交易记录
+  // 添加交易记录（带缓存清理）
   void addTransaction(GoldTransaction transaction) {
-    if (transaction.type == TransactionType.sell) {
-      _processSell(transaction);
-    } else {
-      _ledger.add(transaction);
-    }
+    final encrypted = _encryptTransaction(transaction);
+    _transactionBox.put(encrypted.id, encrypted);
+    _cachedTransactions = null;
     notifyListeners();
   }
 
-  // 仓位计算方法（使用账目数据作为输入）
-  List<InventoryItem> calculateInventory() {
-    final inventory = <InventoryItem>[];
-    final buys = _getSortedBuys();
-    final sells = _ledger.where((t) => t.type == TransactionType.sell).toList();
+  // 更新交易记录（带缓存清理）
+  void updateTransaction(GoldTransaction transaction) {
+    _transactionBox.put(transaction.id, transaction);
+    _cachedTransactions = null;
+    notifyListeners();
+  }
 
+  // 删除交易记录（带缓存清理）
+  void deleteTransaction(String id) {
+    _transactionBox.delete(id);
+    _cachedTransactions = null;
+    notifyListeners();
+  }
+
+  GoldTransaction? getTransactionById(String id) {
+    final transaction = _transactionBox.get(id);
+    return transaction != null
+        ? _decryptTransaction(transaction) // 使用统一解密方法
+        : null;
+  }
+
+  // 加密整个交易对象
+  GoldTransaction _encryptTransaction(GoldTransaction t) {
+    return t.copyWith(
+      note: t.note != null ? _encryptData(t.note!) : null,
+      // 可以加密其他敏感字段...
+    );
+  }
+
+  // 解密整个交易对象
+  GoldTransaction _decryptTransaction(GoldTransaction transaction) {
+    return transaction.copyWith(
+      note: transaction.note != null ? _decryptData(transaction.note!) : null,
+      // 可以添加其他需要解密的字段...
+    );
+  }
+
+  // 加密敏感数据的方法
+  String _encryptData(String data) {
+    try {
+      final iv = encrypt.IV.fromLength(16);
+      return _encrypter.encrypt(data, iv: iv).base64;
+    } catch (e) {
+      debugPrint('加密失败: $e');
+      return data; // 失败时返回原始数据（或抛出异常）
+    }
+  }
+
+  // 解密敏感数据的方法
+  String _decryptData(String encryptedData) {
+    try {
+      final iv = encrypt.IV.fromLength(16);
+      return _encrypter.decrypt64(encryptedData, iv: iv);
+    } catch (e) {
+      debugPrint('解密失败: $e');
+      return encryptedData; // 失败时返回加密数据（或抛出异常）
+    }
+  }
+
+  // 优化后的仓位计算方法
+  List<InventoryItem> calculateInventory() {
+    final buys = _getSortedBuys();
+    final sells =
+        transactions.where((t) => t.type == TransactionType.sell).toList();
     final remainingMap = {for (var buy in buys) buy.id: buy.weight};
 
     for (final sell in sells) {
       double remainingSell = sell.weight;
       if (remainingSell <= 0) continue;
 
-      // 按照策略顺序卖出
       for (final buy in buys) {
         if (remainingSell <= 0) break;
         final available = remainingMap[buy.id] ?? 0;
@@ -54,26 +116,17 @@ class TransactionProvider extends ChangeNotifier {
       }
     }
 
-    // 生成最终仓位
-    for (final buy in buys) {
-      final remaining = remainingMap[buy.id] ?? 0;
-      if (remaining > 0) {
-        inventory.add(InventoryItem(buy, remaining));
-      }
-    }
-
-    // debugPrint('当前策略: $_strategy');
-    // debugPrint(
-    //     '买入记录: ${buys.map((b) => '${b.weight}g@${b.price}元').join(', ')}');
-    // debugPrint(
-    //     '卖出记录: ${sells.map((b) => '${b.weight}g@${b.price}元').join(', ')}');
-    // debugPrint(
-    //     '计算结果: ${inventory.map((i) => '${i.remainingWeight}g@${i.transaction.price}元').join(', ')}');
-    return inventory;
+    return [
+      for (final buy in buys)
+        if ((remainingMap[buy.id] ?? 0) > 0)
+          InventoryItem(buy, remainingMap[buy.id]!)
+    ];
   }
 
+  // 优化后的买入记录排序方法
   List<GoldTransaction> _getSortedBuys() {
-    final buys = _ledger.where((t) => t.type == TransactionType.buy).toList();
+    final buys =
+        transactions.where((t) => t.type == TransactionType.buy).toList();
 
     switch (_strategy) {
       case InventoryStrategy.fifo:
@@ -92,69 +145,11 @@ class TransactionProvider extends ChangeNotifier {
     return buys;
   }
 
-  // 处理卖出交易
-  void _processSell(GoldTransaction sell) {
-    final isEditing = _ledger.any((t) => t.id == sell.id);
-    if (isEditing) _ledger.removeWhere((t) => t.id == sell.id);
-
-    final availableBuys = _getAvailableBuys(sell);
-    double remaining = sell.weight;
-
-    for (final buy in availableBuys) {
-      if (remaining <= 0) break;
-      final used = min(buy.weight, remaining);
-
-      _ledger.add(sell.copyWith(weight: used));
-      remaining -= used;
-    }
-
-    // 4. 处理未完全卖出的部分
-    if (remaining > 0) {
-      _ledger.add(sell.copyWith(weight: remaining));
-    }
-  }
-
-  // 获取可用买入记录（根据策略）
-  List<GoldTransaction> _getAvailableBuys(GoldTransaction sell) {
-    final buys = _ledger.where((t) => t.type == TransactionType.buy).toList();
-
-    switch (_strategy) {
-      case InventoryStrategy.fifo:
-        buys.sort((a, b) => a.date.compareTo(b.date));
-        break;
-      case InventoryStrategy.lifo:
-        buys.sort((a, b) => b.date.compareTo(a.date));
-        break;
-      case InventoryStrategy.lowest:
-        buys.sort((a, b) => a.price.compareTo(b.price));
-        break;
-      case InventoryStrategy.highest:
-        buys.sort((a, b) => b.price.compareTo(a.price));
-        break;
-    }
-
-    return buys;
-  }
-
-  // 更新交易记录
-  void updateTransaction(String id, GoldTransaction newTransaction) {
-    final index = _ledger.indexWhere((t) => t.id == id);
-    if (index != -1) {
-      _ledger[index] = newTransaction;
-      notifyListeners();
-    }
-  }
-
-  // 删除交易记录
-  void removeTransaction(String id) {
-    _ledger.removeWhere((t) => t.id == id);
-    notifyListeners();
-  }
-
-  // 设置仓位策略
+  // 设置仓位策略（带缓存清理）
   void setStrategy(InventoryStrategy strategy) {
-    if (_strategy == strategy) return; // 避免不必要的计算
+    if (_strategy == strategy) return;
     _strategy = strategy;
+    _cachedTransactions = null; // 清除缓存
     notifyListeners();
   }
 }

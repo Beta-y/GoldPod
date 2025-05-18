@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:bill_app/models/ledger.dart';
 import 'package:bill_app/widgets/inventory_list.dart';
 import 'package:bill_app/widgets/transaction_list.dart';
 import 'package:provider/provider.dart';
@@ -11,20 +14,6 @@ class _SwipeConfiguration {
   static const double endVelocityThreshold = 800.0;
 }
 
-class Ledger {
-  String id;
-  String name;
-  DateTime createdAt;
-  bool isPinned;
-
-  Ledger({
-    required this.id,
-    required this.name,
-    required this.createdAt,
-    this.isPinned = false,
-  });
-}
-
 class LedgerManagementScreen extends StatefulWidget {
   const LedgerManagementScreen({super.key});
 
@@ -33,9 +22,7 @@ class LedgerManagementScreen extends StatefulWidget {
 }
 
 class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
-  final List<Ledger> _ledgers = [
-    Ledger(id: '1', name: '默认账本', createdAt: DateTime.now()),
-  ];
+  late Box<Ledger> _ledgerBox;
   final ScrollController _scrollController = ScrollController();
   int? _swipedIndex;
 
@@ -44,6 +31,20 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
   DateTime _lastDragTime = DateTime.now();
   Offset _lastDragPosition = Offset.zero;
   double _currentVelocity = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _ledgerBox = Hive.box<Ledger>('ledgers');
+    // 如果账本为空，添加一个默认账本
+    if (_ledgerBox.isEmpty) {
+      _ledgerBox.add(Ledger(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: '默认账本',
+        createdAt: DateTime.now(),
+      ));
+    }
+  }
 
   void _createNewLedger() {
     showDialog(
@@ -62,32 +63,26 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
           actions: [
             TextButton(
               style: TextButton.styleFrom(
-                foregroundColor:
-                    Theme.of(context).colorScheme.onSurface, // 表面色作为文字颜色
-                backgroundColor:
-                    Theme.of(context).colorScheme.surface, // 表面上的内容色作为背景
+                foregroundColor: Theme.of(context).colorScheme.onSurface,
+                backgroundColor: Theme.of(context).colorScheme.surface,
               ),
               onPressed: () => Navigator.pop(context),
               child: const Text('取消'),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                foregroundColor:
-                    Theme.of(context).colorScheme.surface, // 表面色作为文字颜色
-                backgroundColor:
-                    Theme.of(context).colorScheme.onSurface, // 表面上的内容色作为背景
+                foregroundColor: Theme.of(context).colorScheme.surface,
+                backgroundColor: Theme.of(context).colorScheme.onSurface,
               ),
               onPressed: () {
                 if (nameController.text.isNotEmpty) {
-                  setState(() {
-                    _ledgers.add(
-                      Ledger(
-                        id: DateTime.now().millisecondsSinceEpoch.toString(),
-                        name: nameController.text,
-                        createdAt: DateTime.now(),
-                      ),
-                    );
-                  });
+                  _ledgerBox.add(
+                    Ledger(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      name: nameController.text,
+                      createdAt: DateTime.now(),
+                    ),
+                  );
                   Navigator.pop(context);
                 }
               },
@@ -117,26 +112,21 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
           actions: [
             TextButton(
               style: TextButton.styleFrom(
-                foregroundColor:
-                    Theme.of(context).colorScheme.onSurface, // 表面色作为文字颜色
-                backgroundColor:
-                    Theme.of(context).colorScheme.surface, // 表面上的内容色作为背景
+                foregroundColor: Theme.of(context).colorScheme.onSurface,
+                backgroundColor: Theme.of(context).colorScheme.surface,
               ),
               onPressed: () => Navigator.pop(context),
               child: const Text('取消'),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                foregroundColor:
-                    Theme.of(context).colorScheme.surface, // 表面色作为文字颜色
-                backgroundColor:
-                    Theme.of(context).colorScheme.onSurface, // 表面上的内容色作为背景
+                foregroundColor: Theme.of(context).colorScheme.surface,
+                backgroundColor: Theme.of(context).colorScheme.onSurface,
               ),
               onPressed: () {
                 if (nameController.text.isNotEmpty) {
-                  setState(() {
-                    ledger.name = nameController.text;
-                  });
+                  ledger.name = nameController.text;
+                  ledger.save();
                   Navigator.pop(context);
                 }
               },
@@ -157,26 +147,20 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
         actions: [
           TextButton(
             style: TextButton.styleFrom(
-              foregroundColor:
-                  Theme.of(context).colorScheme.onSurface, // 表面色作为文字颜色
-              backgroundColor:
-                  Theme.of(context).colorScheme.surface, // 表面上的内容色作为背景
+              foregroundColor: Theme.of(context).colorScheme.onSurface,
+              backgroundColor: Theme.of(context).colorScheme.surface,
             ),
             onPressed: () => Navigator.pop(context),
             child: const Text('取消'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              foregroundColor:
-                  Theme.of(context).colorScheme.surface, // 表面色作为文字颜色
-              backgroundColor:
-                  Theme.of(context).colorScheme.onSurface, // 表面上的内容色作为背景
+              foregroundColor: Theme.of(context).colorScheme.surface,
+              backgroundColor: Theme.of(context).colorScheme.onSurface,
             ),
             onPressed: () {
-              setState(() {
-                _ledgers.removeWhere((ledger) => ledger.id == id);
-                _swipedIndex = null;
-              });
+              _ledgerBox.delete(id);
+              _swipedIndex = null;
               Navigator.pop(context);
             },
             child: const Text('删除'),
@@ -187,17 +171,9 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
   }
 
   void _togglePin(Ledger ledger) {
-    setState(() {
-      ledger.isPinned = !ledger.isPinned;
-      // 将置顶的账本移动到列表顶部
-      _ledgers.sort((a, b) {
-        if (a.isPinned && !b.isPinned) return -1;
-        if (!a.isPinned && b.isPinned) return 1;
-        if (a.isPinned && b.isPinned) return 1;
-        return 0;
-      });
-      _swipedIndex = null;
-    });
+    ledger.isPinned = !ledger.isPinned;
+    ledger.save();
+    _swipedIndex = null;
   }
 
   void _handleSwipe(int index) {
@@ -235,174 +211,186 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
         onPressed: _createNewLedger,
         child: const Icon(Icons.add, color: Colors.black),
       ),
-      body: _ledgers.isEmpty
-          ? Center(
-              child: Text(
-                '暂无账本，点击右下角+号创建',
-                style: TextStyle(
-                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                ),
-              ),
-            )
-          : ListView.builder(
-              controller: _scrollController,
-              itemCount: _ledgers.length,
-              itemExtent: 80,
-              itemBuilder: (context, index) {
-                final ledger = _ledgers[index];
-                return GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onHorizontalDragStart: (details) {
-                    _isSwiping = true;
-                    _dragDistance = 0.0;
-                    _lastDragTime = DateTime.now();
-                    _lastDragPosition = details.globalPosition;
-                  },
-                  onHorizontalDragUpdate: (details) {
-                    final now = DateTime.now();
-                    final elapsed =
-                        now.difference(_lastDragTime).inMilliseconds;
+      body: ValueListenableBuilder<Box<Ledger>>(
+        valueListenable: _ledgerBox.listenable(),
+        builder: (context, box, _) {
+          final ledgers = box.values.toList();
+          ledgers.sort((a, b) {
+            if (a.isPinned && !b.isPinned) return -1;
+            if (!a.isPinned && b.isPinned) return 1;
+            return b.createdAt.compareTo(a.createdAt);
+          });
 
-                    if (elapsed > 0) {
-                      final distance =
-                          (details.globalPosition - _lastDragPosition).distance;
-                      _currentVelocity = distance / elapsed * 1000;
-                      _lastDragTime = now;
-                      _lastDragPosition = details.globalPosition;
-                    }
-
-                    _dragDistance += details.delta.dx.abs();
-
-                    final isFastSwipe = _currentVelocity >
-                        _SwipeConfiguration.fastSwipeVelocityThreshold;
-                    final threshold = isFastSwipe
-                        ? _SwipeConfiguration.minSwipeDistance / 2
-                        : _SwipeConfiguration.minSwipeDistance;
-
-                    if (_dragDistance > threshold) {
-                      if (details.delta.dx < -threshold) {
-                        _handleSwipe(index);
-                      } else if (details.delta.dx > threshold &&
-                          _swipedIndex == index) {
-                        _handleSwipe(index);
-                      }
-                    }
-                  },
-                  onHorizontalDragEnd: (details) {
-                    final endVelocity =
-                        details.velocity.pixelsPerSecond.dx.abs();
-                    _isSwiping = false;
-
-                    final shouldRebound = endVelocity <
-                            _SwipeConfiguration.endVelocityThreshold &&
-                        _dragDistance <
-                            _SwipeConfiguration.maxReboundDistance &&
-                        _swipedIndex == index;
-
-                    if (shouldRebound) {
-                      _handleSwipe(index);
-                    }
-                  },
-                  onTap: () {
-                    if (!_isSwiping && _swipedIndex == index) {
-                      _handleSwipe(index);
-                    }
-                  },
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // 主卡片内容
-                      Positioned.fill(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 0),
-                          child: Card(
-                            color: isDarkMode ? Colors.grey[800] : Colors.white,
-                            child: ListTile(
-                              leading: Icon(Icons.account_balance_wallet,
-                                  color: primaryColor),
-                              title: Text(ledger.name),
-                              subtitle: Text(
-                                '创建于: ${ledger.createdAt.toString().split(' ')[0]}',
-                                style: TextStyle(
-                                  color: isDarkMode
-                                      ? Colors.grey[400]
-                                      : Colors.grey[600],
-                                ),
-                              ),
-                              trailing: _swipedIndex == index // 关键修改：滑动时隐藏
-                                  ? null
-                                  : (ledger.isPinned
-                                      ? Icon(Icons.push_pin,
-                                          color: primaryColor)
-                                      : null),
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => GoldAssistantScreen(
-                                      ledgerName: ledger.name),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // 右侧操作按钮（完全隐藏）
-                      Positioned(
-                        right: 16,
-                        top: 8,
-                        bottom: 8,
-                        child: IgnorePointer(
-                          // 新增：禁用按钮交互
-                          ignoring: _swipedIndex != index, // 只有展开时才启用点击
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 200),
-                            opacity: _swipedIndex == index ? 1.0 : 0.0,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: null,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 8),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _buildActionButton(
-                                    icon: Icons.push_pin,
-                                    color: primaryColor,
-                                    onTap: () => _togglePin(ledger),
-                                    isActive: ledger.isPinned,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _buildActionButton(
-                                    icon: Icons.edit,
-                                    color: primaryColor,
-                                    onTap: () {
-                                      _handleSwipe(index);
-                                      _editLedger(ledger);
-                                    },
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _buildActionButton(
-                                    icon: Icons.delete,
-                                    color: errorColor,
-                                    onTap: () {
-                                      _handleSwipe(index);
-                                      _deleteLedger(ledger.id);
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+          return ledgers.isEmpty
+              ? Center(
+                  child: Text(
+                    '暂无账本，点击右下角+号创建',
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                    ),
                   ),
+                )
+              : ListView.builder(
+                  controller: _scrollController,
+                  itemCount: ledgers.length,
+                  itemExtent: 80,
+                  itemBuilder: (context, index) {
+                    final ledger = ledgers[index];
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onHorizontalDragStart: (details) {
+                        _isSwiping = true;
+                        _dragDistance = 0.0;
+                        _lastDragTime = DateTime.now();
+                        _lastDragPosition = details.globalPosition;
+                      },
+                      onHorizontalDragUpdate: (details) {
+                        final now = DateTime.now();
+                        final elapsed =
+                            now.difference(_lastDragTime).inMilliseconds;
+
+                        if (elapsed > 0) {
+                          final distance =
+                              (details.globalPosition - _lastDragPosition)
+                                  .distance;
+                          _currentVelocity = distance / elapsed * 1000;
+                          _lastDragTime = now;
+                          _lastDragPosition = details.globalPosition;
+                        }
+
+                        _dragDistance += details.delta.dx.abs();
+
+                        final isFastSwipe = _currentVelocity >
+                            _SwipeConfiguration.fastSwipeVelocityThreshold;
+                        final threshold = isFastSwipe
+                            ? _SwipeConfiguration.minSwipeDistance / 2
+                            : _SwipeConfiguration.minSwipeDistance;
+
+                        if (_dragDistance > threshold) {
+                          if (details.delta.dx < -threshold) {
+                            _handleSwipe(index);
+                          } else if (details.delta.dx > threshold &&
+                              _swipedIndex == index) {
+                            _handleSwipe(index);
+                          }
+                        }
+                      },
+                      onHorizontalDragEnd: (details) {
+                        final endVelocity =
+                            details.velocity.pixelsPerSecond.dx.abs();
+                        _isSwiping = false;
+
+                        final shouldRebound = endVelocity <
+                                _SwipeConfiguration.endVelocityThreshold &&
+                            _dragDistance <
+                                _SwipeConfiguration.maxReboundDistance &&
+                            _swipedIndex == index;
+
+                        if (shouldRebound) {
+                          _handleSwipe(index);
+                        }
+                      },
+                      onTap: () {
+                        if (!_isSwiping && _swipedIndex == index) {
+                          _handleSwipe(index);
+                        }
+                      },
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Positioned.fill(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 0),
+                              child: Card(
+                                color: isDarkMode
+                                    ? Colors.grey[800]
+                                    : Colors.white,
+                                child: ListTile(
+                                  leading: Icon(Icons.account_balance_wallet,
+                                      color: primaryColor),
+                                  title: Text(ledger.name),
+                                  subtitle: Text(
+                                    '创建于: ${ledger.createdAt.toString().split(' ')[0]}',
+                                    style: TextStyle(
+                                      color: isDarkMode
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
+                                    ),
+                                  ),
+                                  trailing: _swipedIndex == index
+                                      ? null
+                                      : (ledger.isPinned
+                                          ? Icon(Icons.push_pin,
+                                              color: primaryColor)
+                                          : null),
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => GoldAssistantScreen(
+                                          ledgerName: ledger.name),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            right: 16,
+                            top: 8,
+                            bottom: 8,
+                            child: IgnorePointer(
+                              ignoring: _swipedIndex != index,
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 200),
+                                opacity: _swipedIndex == index ? 1.0 : 0.0,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: null,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 8),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _buildActionButton(
+                                        icon: Icons.push_pin,
+                                        color: primaryColor,
+                                        onTap: () => _togglePin(ledger),
+                                        isActive: ledger.isPinned,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _buildActionButton(
+                                        icon: Icons.edit,
+                                        color: primaryColor,
+                                        onTap: () {
+                                          _handleSwipe(index);
+                                          _editLedger(ledger);
+                                        },
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _buildActionButton(
+                                        icon: Icons.delete,
+                                        color: errorColor,
+                                        onTap: () {
+                                          _handleSwipe(index);
+                                          _deleteLedger(ledger.id);
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 );
-              },
-            ),
+        },
+      ),
     );
   }
 
