@@ -112,7 +112,8 @@ class TransactionListScreen extends StatelessWidget {
                         if (t.note != null) Text('备注: ${t.note}'),
                       ],
                     ),
-                    trailing: Text(DateFormat('MM-dd').format(t.date)),
+                    trailing:
+                        Text(DateFormat('yyyy-MM-dd HH:mm:ss').format(t.date)),
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(

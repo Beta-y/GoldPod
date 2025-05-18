@@ -34,7 +34,7 @@ flutter pub get
 cd android
 ./gradlew clean
 cd ..
-flutter build apk --release
+flutter build apk --split-per-abi
 */
 
 void main() async {

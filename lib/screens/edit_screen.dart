@@ -30,7 +30,7 @@ class _EditScreenState extends State<EditScreen> {
       final t = widget.existingTransaction!;
       _weightController.text = t.weight.toString();
       _priceController.text = t.price.toString();
-      _dateController.text = DateFormat('yyyy-MM-dd').format(t.date);
+      _dateController.text = DateFormat('yyyy-MM-dd HH:mm:ss').format(t.date);
       _noteController.text = t.note ?? '';
       _selectedDate = t.date;
       _transactionType = t.type;
@@ -156,7 +156,8 @@ class _EditScreenState extends State<EditScreen> {
               floatingLabelStyle:
                   TextStyle(color: Theme.of(context).colorScheme.onSurface),
               labelText: '交易日期',
-              hintText: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+              hintText:
+                  DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
               border: const OutlineInputBorder(),
             ),
             readOnly: true,
@@ -198,7 +199,7 @@ class _EditScreenState extends State<EditScreen> {
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
-        _dateController.text = DateFormat('yyyy-MM-dd').format(picked);
+        _dateController.text = DateFormat('yyyy-MM-dd HH:mm:ss').format(picked);
       });
     }
   }

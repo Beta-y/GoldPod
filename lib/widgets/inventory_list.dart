@@ -198,7 +198,8 @@ class InventoryScreen extends StatelessWidget {
                   _buildDetailChip(
                     context,
                     '日期',
-                    DateFormat('yyyy-MM-dd').format(item.transaction.date),
+                    DateFormat('yyyy-MM-dd HH:mm:ss')
+                        .format(item.transaction.date),
                   ),
                 ],
               ),
