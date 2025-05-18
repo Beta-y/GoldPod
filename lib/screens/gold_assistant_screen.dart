@@ -9,10 +9,10 @@ import 'package:provider/provider.dart';
 import 'package:bill_app/providers/theme_provider.dart';
 
 class _SwipeConfiguration {
-  static const double fastSwipeVelocityThreshold = 1000.0;
-  static const double minSwipeDistance = 4.0;
-  static const double maxReboundDistance = 15.0;
-  static const double endVelocityThreshold = 800.0;
+  static const double fastSwipeVelocityThreshold = 700.0;
+  static const double minSwipeDistance = 2.0;
+  static const double maxReboundDistance = 10.0;
+  static const double endVelocityThreshold = 300.0;
 }
 
 class LedgerManagementScreen extends StatefulWidget {
@@ -186,21 +186,30 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
   }
 
   Future<void> _deleteLedgerWithTransactions(String ledgerId) async {
-    // 1. 获取关联的账目Box
-    final transactionsBox = await Hive.openBox<GoldTransaction>('transactions');
+    try {
+      // 1. 获取关联的账目Box
+      final transactionsBox = Hive.box<GoldTransaction>('transactions');
 
-    // 2. 找出所有关联账目
-    final relatedTransactions =
-        transactionsBox.values.where((t) => t.ledgerId == ledgerId).toList();
+      // 2. 找出所有关联账目
+      final relatedTransactions =
+          transactionsBox.values.where((t) => t.ledgerId == ledgerId).toList();
 
-    // 3. 级联删除账目
-    await transactionsBox.deleteAll(relatedTransactions.map((t) => t.id));
+      // 3. 级联删除账目
+      await transactionsBox.deleteAll(relatedTransactions.map((t) => t.id));
 
-    // 4. 最后删除账本本身
-    await _ledgerBox.delete(ledgerId);
+      // 4. 最后删除账本本身
+      await _ledgerBox.delete(ledgerId);
 
-    // 5. 关闭Box（可选）
-    await transactionsBox.close();
+      // 5. 确保Box仍然打开（不要关闭它）
+      if (!transactionsBox.isOpen) {
+        await Hive.openBox<GoldTransaction>('transactions');
+      }
+    } catch (e) {
+      debugPrint('Error deleting ledger: $e');
+      // 如果出错，尝试重新打开Box
+      await Hive.openBox<GoldTransaction>('transactions');
+      await Hive.openBox<Ledger>('ledgers');
+    }
   }
 
   void _togglePin(Ledger ledger) {

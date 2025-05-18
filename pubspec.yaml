@@ -25,6 +25,15 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  image_path: "assets/icon/account_balance_wallet.png" # 你的图标路径
+  android: true
+  ios: true
+  remove_alpha_ios: true # iOS去除透明背景
+
+version: 1.0.0+1

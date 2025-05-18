@@ -17,6 +17,7 @@ import 'package:bill_app/models/ledger.dart';
 import 'package:bill_app/models/gold_transaction.dart';
 
 /*
+构建:
 flutter clean
 flutter pub get
 cd android
@@ -24,7 +25,16 @@ cd android
 cd ..
 flutter run
 
+卸载:
 adb uninstall com.example.bill_app
+
+发布:
+flutter clean
+flutter pub get
+cd android
+./gradlew clean
+cd ..
+flutter build apk --release
 */
 
 void main() async {
