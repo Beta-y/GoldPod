@@ -3,7 +3,7 @@ import 'package:hive/hive.dart';
 part 'ledger.g.dart';
 
 @HiveType(typeId: 0)
-class Ledger {
+class Ledger extends HiveObject {
   @HiveField(0)
   final String id;
 
@@ -22,18 +22,6 @@ class Ledger {
     required this.createdAt,
     this.isPinned = false,
   });
-
-  // 添加保存方法（Hive会自动处理，但可以添加便捷方法）
-  Future<void> save() async {
-    final box = Hive.box<Ledger>('ledgers');
-    await box.put(id, this);
-  }
-
-  // 可选：添加删除方法
-  Future<void> delete() async {
-    final box = Hive.box<Ledger>('ledgers');
-    await box.delete(id);
-  }
 
   // 可选：添加复制方法
   Ledger copyWith({

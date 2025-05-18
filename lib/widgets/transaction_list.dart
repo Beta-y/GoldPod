@@ -12,18 +12,25 @@ class TransactionListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final transactions = context.watch<TransactionProvider>().transactions;
+    final transactionProvider = context.read<TransactionProvider>();
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     final primaryColor =
         isDarkMode ? const Color(0xFFFFD700) : const Color(0xFFD4AF37);
+
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         backgroundColor: primaryColor,
         child: const Icon(Icons.add, color: Colors.black),
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const EditScreen()),
-        ),
+        onPressed: () {
+          final ledgerId = Provider.of<String>(context, listen: false);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EditScreen(ledgerId: ledgerId),
+            ),
+          );
+        },
       ),
       body: transactions.isEmpty
           ? const Center(
@@ -43,30 +50,75 @@ class TransactionListScreen extends StatelessWidget {
               itemCount: transactions.length,
               itemBuilder: (ctx, index) {
                 final t = transactions[index];
-                return ListTile(
-                  leading: Icon(
-                    t.type == TransactionType.buy
-                        ? Icons.arrow_upward
-                        : Icons.arrow_downward,
-                    color: t.type == TransactionType.buy
-                        ? Colors.green
-                        : Colors.red,
+                return Dismissible(
+                  key: ValueKey(t.id), // 确保每个条目有唯一标识
+                  direction: DismissDirection.endToStart, // 只允许从右向左滑动
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
                   ),
-                  title: Text(
-                    '${t.type == TransactionType.buy ? '买入' : '卖出'} ${t.weight}g',
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('价格: ${t.price}元/克'),
-                      if (t.note != null) Text('备注: ${t.note}'),
-                    ],
-                  ),
-                  trailing: Text(DateFormat('MM-dd').format(t.date)),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EditScreen(existingTransaction: t),
+                  confirmDismiss: (direction) async {
+                    // 显示确认对话框
+                    return await showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text("确认删除"),
+                          content: const Text("您确定要删除这条交易记录吗？"),
+                          actions: [
+                            TextButton(
+                              child: const Text("取消"),
+                              onPressed: () => Navigator.of(context).pop(false),
+                            ),
+                            TextButton(
+                              child: const Text("删除",
+                                  style: TextStyle(color: Colors.red)),
+                              onPressed: () => Navigator.of(context).pop(true),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  onDismissed: (direction) {
+                    // 用户确认后执行删除操作
+                    transactionProvider.deleteTransaction(t.id!);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                            '已删除${t.type == TransactionType.buy ? '买入' : '卖出'}记录'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  child: ListTile(
+                    leading: Icon(
+                      t.type == TransactionType.buy
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward,
+                      color: t.type == TransactionType.buy
+                          ? Colors.green
+                          : Colors.red,
+                    ),
+                    title: Text(
+                      '${t.type == TransactionType.buy ? '买入' : '卖出'} ${t.weight}g',
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('价格: ${t.price}元/克'),
+                        if (t.note != null) Text('备注: ${t.note}'),
+                      ],
+                    ),
+                    trailing: Text(DateFormat('MM-dd').format(t.date)),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditScreen(
+                            ledgerId: t.ledgerId, existingTransaction: t),
+                      ),
                     ),
                   ),
                 );

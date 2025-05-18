@@ -22,6 +22,9 @@ class GoldTransaction {
   @HiveField(5)
   final String? note;
 
+  @HiveField(6)
+  final String ledgerId; // 外键，关联账本
+
   const GoldTransaction({
     required this.id,
     required this.date,
@@ -29,6 +32,7 @@ class GoldTransaction {
     required this.weight,
     required this.price,
     this.note,
+    required this.ledgerId,
   });
 
   // Hive 存储方法
@@ -51,6 +55,7 @@ class GoldTransaction {
     double? weight,
     double? price,
     String? note,
+    String? ledgerId,
   }) {
     return GoldTransaction(
       id: id ?? this.id,
@@ -59,6 +64,7 @@ class GoldTransaction {
       weight: weight ?? this.weight,
       price: price ?? this.price,
       note: note ?? this.note,
+      ledgerId: ledgerId ?? this.ledgerId,
     );
   }
 

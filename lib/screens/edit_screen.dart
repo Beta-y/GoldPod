@@ -5,8 +5,10 @@ import '../models/gold_transaction.dart';
 import '../providers/transaction_provider.dart';
 
 class EditScreen extends StatefulWidget {
+  final String ledgerId;
   final GoldTransaction? existingTransaction;
-  const EditScreen({super.key, this.existingTransaction});
+  const EditScreen(
+      {super.key, required this.ledgerId, this.existingTransaction});
 
   @override
   State<EditScreen> createState() => _EditScreenState();
@@ -232,6 +234,7 @@ class _EditScreenState extends State<EditScreen> {
     if (_formKey.currentState?.validate() != true) return;
 
     final transaction = GoldTransaction(
+      ledgerId: widget.ledgerId, // 使用传入的ledgerId
       id: widget.existingTransaction?.id ??
           DateTime.now().millisecondsSinceEpoch.toString(),
       date: _selectedDate,

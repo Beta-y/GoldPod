@@ -27,6 +27,12 @@ class TransactionProvider extends ChangeNotifier {
 
   // 添加交易记录（带缓存清理）
   void addTransaction(GoldTransaction transaction) {
+    if (transaction.weight <= 0) {
+      throw ArgumentError('重量必须大于0');
+    }
+    if (transaction.price <= 0) {
+      throw ArgumentError('价格必须大于0');
+    }
     final encrypted = _encryptTransaction(transaction);
     _transactionBox.put(encrypted.id, encrypted);
     _cachedTransactions = null;
@@ -74,10 +80,11 @@ class TransactionProvider extends ChangeNotifier {
   String _encryptData(String data) {
     try {
       final iv = encrypt.IV.fromLength(16);
-      return _encrypter.encrypt(data, iv: iv).base64;
+      final encrypted = _encrypter.encrypt(data, iv: iv);
+      return encrypted.base64;
     } catch (e) {
       debugPrint('加密失败: $e');
-      return data; // 失败时返回原始数据（或抛出异常）
+      throw Exception('数据加密失败，请检查加密配置');
     }
   }
 
@@ -88,7 +95,7 @@ class TransactionProvider extends ChangeNotifier {
       return _encrypter.decrypt64(encryptedData, iv: iv);
     } catch (e) {
       debugPrint('解密失败: $e');
-      return encryptedData; // 失败时返回加密数据（或抛出异常）
+      throw Exception('数据解密失败，可能是加密密钥不匹配');
     }
   }
 

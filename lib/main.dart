@@ -21,7 +21,10 @@ flutter clean
 flutter pub get
 cd android
 ./gradlew clean
+cd ..
 flutter run
+
+adb uninstall com.example.bill_app
 */
 
 void main() async {
@@ -102,8 +105,8 @@ class GoldTradingApp extends StatelessWidget {
       routes: {
         '/': (context) => const HomeScreen(),
         '/assistant': (context) =>
-            const GoldAssistantScreen(ledgerName: '默认账本'),
-        '/edit': (context) => const EditScreen(),
+            const GoldAssistantScreen(ledgerName: '默认账本', ledgerId: 'default'),
+        '/edit': (context) => const EditScreen(ledgerId: 'default'),
       },
       builder: (context, child) {
         return MediaQuery(

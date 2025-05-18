@@ -82,7 +82,7 @@ class HomeScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 32),
               child: Text(
-                '专业黄金仓位管理工具',
+                '极简黄金交易账目管理工具',
                 style: TextStyle(
                   fontSize: 14,
                   color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
@@ -98,7 +98,7 @@ class HomeScreen extends StatelessWidget {
         elevation: 0,
         child: Center(
           child: Text(
-            '© 2024 黄金交易助手',
+            '© 2025 黄金交易助手 by Beta-y',
             style: TextStyle(
               fontSize: 12,
               color: isDarkMode ? Colors.grey[500] : Colors.grey[600],

@@ -1,3 +1,4 @@
+import 'package:bill_app/models/gold_transaction.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -38,11 +39,19 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
     _ledgerBox = Hive.box<Ledger>('ledgers');
     // 如果账本为空，添加一个默认账本
     if (_ledgerBox.isEmpty) {
-      _ledgerBox.add(Ledger(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: '默认账本',
-        createdAt: DateTime.now(),
-      ));
+      final defaultExists =
+          _ledgerBox.values.any((ledger) => ledger.name == '默认账本');
+      if (!defaultExists) {
+        final uniqueKey = DateTime.now().millisecondsSinceEpoch.toString();
+        _ledgerBox.put(
+          uniqueKey,
+          Ledger(
+            id: uniqueKey,
+            name: '默认账本',
+            createdAt: DateTime.now(),
+          ),
+        );
+      }
     }
   }
 
@@ -76,9 +85,12 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
               ),
               onPressed: () {
                 if (nameController.text.isNotEmpty) {
-                  _ledgerBox.add(
+                  final uniqueKey =
+                      DateTime.now().millisecondsSinceEpoch.toString();
+                  _ledgerBox.put(
+                    uniqueKey,
                     Ledger(
-                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      id: uniqueKey,
                       name: nameController.text,
                       createdAt: DateTime.now(),
                     ),
@@ -143,7 +155,7 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('确认删除'),
-        content: const Text('确定要删除这个账本吗？'),
+        content: const Text('将同时删除该账本下的所有账目'),
         actions: [
           TextButton(
             style: TextButton.styleFrom(
@@ -158,8 +170,11 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
               foregroundColor: Theme.of(context).colorScheme.surface,
               backgroundColor: Theme.of(context).colorScheme.onSurface,
             ),
-            onPressed: () {
-              _ledgerBox.delete(id);
+            onPressed: () async {
+              debugPrint('Deleting ledger with id: $id'); // 添加日志
+              await _deleteLedgerWithTransactions(id); // 使用新方法
+              debugPrint(
+                  'After deletion, box contains: ${_ledgerBox.keys.toList()}'); // 验证
               _swipedIndex = null;
               Navigator.pop(context);
             },
@@ -170,10 +185,30 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
     );
   }
 
+  Future<void> _deleteLedgerWithTransactions(String ledgerId) async {
+    // 1. 获取关联的账目Box
+    final transactionsBox = await Hive.openBox<GoldTransaction>('transactions');
+
+    // 2. 找出所有关联账目
+    final relatedTransactions =
+        transactionsBox.values.where((t) => t.ledgerId == ledgerId).toList();
+
+    // 3. 级联删除账目
+    await transactionsBox.deleteAll(relatedTransactions.map((t) => t.id));
+
+    // 4. 最后删除账本本身
+    await _ledgerBox.delete(ledgerId);
+
+    // 5. 关闭Box（可选）
+    await transactionsBox.close();
+  }
+
   void _togglePin(Ledger ledger) {
-    ledger.isPinned = !ledger.isPinned;
-    ledger.save();
-    _swipedIndex = null;
+    setState(() {
+      ledger.isPinned = !ledger.isPinned;
+      _swipedIndex = null;
+    });
+    ledger.save(); // 使用 HiveObject 自带的 save()
   }
 
   void _handleSwipe(int index) {
@@ -321,13 +356,21 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
                                   trailing: _swipedIndex == index
                                       ? null
                                       : (ledger.isPinned
-                                          ? Icon(Icons.push_pin,
-                                              color: primaryColor)
+                                          ? Transform.translate(
+                                              offset:
+                                                  const Offset(0, 0), // X/Y轴微调
+                                              child: Icon(
+                                                Icons.push_pin,
+                                                color: primaryColor,
+                                                size: 24, // 缩小图标
+                                              ),
+                                            )
                                           : null),
                                   onTap: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => GoldAssistantScreen(
+                                          ledgerId: ledger.id,
                                           ledgerName: ledger.name),
                                     ),
                                   ),
@@ -347,10 +390,10 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: null,
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(5),
                                   ),
                                   padding:
-                                      const EdgeInsets.symmetric(horizontal: 8),
+                                      const EdgeInsets.symmetric(horizontal: 5),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -359,8 +402,9 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
                                         color: primaryColor,
                                         onTap: () => _togglePin(ledger),
                                         isActive: ledger.isPinned,
+                                        size: 40,
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 5),
                                       _buildActionButton(
                                         icon: Icons.edit,
                                         color: primaryColor,
@@ -368,8 +412,9 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
                                           _handleSwipe(index);
                                           _editLedger(ledger);
                                         },
+                                        size: 40,
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 5),
                                       _buildActionButton(
                                         icon: Icons.delete,
                                         color: errorColor,
@@ -377,6 +422,7 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
                                           _handleSwipe(index);
                                           _deleteLedger(ledger.id);
                                         },
+                                        size: 40,
                                       ),
                                     ],
                                   ),
@@ -399,19 +445,20 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
     required Color color,
     required VoidCallback onTap,
     bool isActive = false,
+    double size = 40,
   }) {
     return InkWell(
       onTap: onTap,
       child: Container(
-        width: 56,
-        height: 56,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(28),
+          color: color.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(size / 2),
         ),
         child: Icon(
           icon,
-          color: isActive ? color : color.withOpacity(0.7),
+          color: isActive ? color : color.withValues(alpha: 0.7),
           size: 24,
         ),
       ),
@@ -420,10 +467,12 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
 }
 
 class GoldAssistantScreen extends StatelessWidget {
+  final String ledgerId;
   final String ledgerName; // 新增参数
 
   const GoldAssistantScreen({
     super.key,
+    required this.ledgerId,
     required this.ledgerName, // 必传参数
   });
 
@@ -433,39 +482,43 @@ class GoldAssistantScreen extends StatelessWidget {
     final isDarkMode = themeProvider.isDarkMode;
     final primaryColor =
         isDarkMode ? const Color(0xFFFFD700) : const Color(0xFFD4AF37);
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(ledgerName),
-          backgroundColor: Colors.black,
-          foregroundColor: primaryColor,
-          bottom: TabBar(
-            tabs: const [
-              Tab(
-                child: Text(
-                  '账目',
-                  style: TextStyle(
-                    color: Colors.white,
+    return Provider.value(
+      value: ledgerId,
+      child: DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(ledgerName),
+            backgroundColor: Colors.black,
+            foregroundColor: primaryColor,
+            bottom: TabBar(
+              tabs: const [
+                Tab(
+                  child: Text(
+                    '账目',
+                    style: TextStyle(
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              ),
-              Tab(
-                child: Text(
-                  '仓位',
-                  style: TextStyle(
-                    color: Colors.white,
+                Tab(
+                  child: Text(
+                    '仓位',
+                    style: TextStyle(
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              ),
-            ],
-            indicatorColor: Theme.of(context).colorScheme.secondary,
-            labelColor: Theme.of(context).textTheme.bodyLarge?.color,
-            unselectedLabelColor: Theme.of(context).textTheme.bodyMedium?.color,
+              ],
+              indicatorColor: Theme.of(context).colorScheme.secondary,
+              labelColor: Theme.of(context).textTheme.bodyLarge?.color,
+              unselectedLabelColor:
+                  Theme.of(context).textTheme.bodyMedium?.color,
+            ),
           ),
-        ),
-        body: const TabBarView(
-          children: [TransactionListScreen(), InventoryScreen()],
+          body: const TabBarView(
+            children: [TransactionListScreen(), InventoryScreen()],
+          ),
         ),
       ),
     );
