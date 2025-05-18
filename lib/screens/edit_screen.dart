@@ -96,7 +96,7 @@ class _EditScreenState extends State<EditScreen> {
       decoration: InputDecoration(
         floatingLabelStyle:
             TextStyle(color: Theme.of(context).colorScheme.onSurface),
-        labelText: '重量 (克)',
+        labelText: '重量 (g)',
         border: const OutlineInputBorder(),
       ),
       validator: (value) {
@@ -117,7 +117,7 @@ class _EditScreenState extends State<EditScreen> {
       decoration: InputDecoration(
         floatingLabelStyle:
             TextStyle(color: Theme.of(context).colorScheme.onSurface),
-        labelText: '价格 (元/克)',
+        labelText: '价格 (元/g)',
         border: const OutlineInputBorder(),
       ),
       validator: (value) {

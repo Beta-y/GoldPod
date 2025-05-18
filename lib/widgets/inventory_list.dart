@@ -91,9 +91,9 @@ class InventoryScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildSummaryRow('总持仓重量', '${totalWeight.toStringAsFixed(2)}g'),
+            _buildSummaryRow('总持仓重量', '${totalWeight.toStringAsFixed(4)}g'),
             const Divider(height: 20),
-            _buildSummaryRow('平均成本价', '${avgPrice.toStringAsFixed(2)}元/克'),
+            _buildSummaryRow('平均成本价', '${avgPrice.toStringAsFixed(2)}元/g'),
             const Divider(height: 20),
             _buildSummaryRow(
               '当前总价值',
@@ -179,7 +179,7 @@ class InventoryScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${item.remainingWeight.toStringAsFixed(2)}g',
+                    '${item.remainingWeight.toStringAsFixed(4)}g',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

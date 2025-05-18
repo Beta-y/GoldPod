@@ -108,7 +108,7 @@ class TransactionListScreen extends StatelessWidget {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('价格: ${t.price}元/克'),
+                        Text('价格: ${t.price}元/g'),
                         if (t.note != null) Text('备注: ${t.note}'),
                       ],
                     ),
