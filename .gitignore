@@ -1,45 +1,42 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
-
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# Flutter/Dart/Pub 核心
 .dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
+*.iml
+.metadata
+*.flutter-plugins
+*.flutter-plugins-dependencies
+**/ios/Flutter/.last_build_id
 
-# Symbolication related
-app.*.symbols
+# Android 专用
+android/**/gradle-wrapper.jar
+android/.gradle/
+android/local.properties
+android/**/GeneratedPluginRegistrant.java
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
 
-# Obfuscation related
-app.*.map.json
+# iOS 专用
+ios/**/Pods/
+ios/**/.symlinks/
+ios/Flutter/App.framework/
+ios/Flutter/Flutter.framework/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/flutter_assets/
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# 平台无关的通用忽略
+.DS_Store
+*.log
+*.lock
+*.swp
+.svn/
+
+# IDE 配置（按需取消注释）
+.idea/
+.vscode/  # 如果团队不共享 VS Code 配置
