@@ -22,6 +22,7 @@ class GoldTransactionAdapter extends TypeAdapter<GoldTransaction> {
       type: fields[2] as TransactionType,
       weight: fields[3] as double,
       price: fields[4] as double,
+      amount: fields[7] as double,
       note: fields[5] as String?,
       ledgerId: fields[6] as String,
     );
@@ -30,7 +31,7 @@ class GoldTransactionAdapter extends TypeAdapter<GoldTransaction> {
   @override
   void write(BinaryWriter writer, GoldTransaction obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class GoldTransactionAdapter extends TypeAdapter<GoldTransaction> {
       ..writeByte(5)
       ..write(obj.note)
       ..writeByte(6)
-      ..write(obj.ledgerId);
+      ..write(obj.ledgerId)
+      ..writeByte(7)
+      ..write(obj.amount);
   }
 
   @override

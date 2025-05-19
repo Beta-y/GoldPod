@@ -25,16 +25,54 @@ class TransactionProvider extends ChangeNotifier {
   // 获取当前策略
   InventoryStrategy get currentStrategy => _strategy;
 
-  // 添加交易记录（带缓存清理）
-  void addTransaction(GoldTransaction transaction) {
-    if (transaction.weight <= 0) {
-      throw ArgumentError('重量必须大于0');
-    }
-    if (transaction.price <= 0) {
-      throw ArgumentError('价格必须大于0');
-    }
-    final encrypted = _encryptTransaction(transaction);
-    _transactionBox.put(encrypted.id, encrypted);
+  // 新增：创建买入交易（金额→克重）
+  void addBuyTransaction({
+    required String id,
+    required DateTime date,
+    required double amount,
+    required double price,
+    String? note,
+    required String ledgerId,
+  }) {
+    if (amount <= 0) throw ArgumentError('总额必须大于0');
+    if (price <= 0) throw ArgumentError('价格必须大于0');
+
+    final transaction = GoldTransaction.buy(
+      id: id,
+      date: date,
+      amount: amount,
+      price: price,
+      note: note,
+      ledgerId: ledgerId,
+    );
+
+    _transactionBox.put(id, _encryptTransaction(transaction));
+    _cachedTransactions = null;
+    notifyListeners();
+  }
+
+  // 新增：创建卖出交易（克重→金额）
+  void addSellTransaction({
+    required String id,
+    required DateTime date,
+    required double weight,
+    required double price,
+    String? note,
+    required String ledgerId,
+  }) {
+    if (weight <= 0) throw ArgumentError('克重必须大于0');
+    if (price <= 0) throw ArgumentError('价格必须大于0');
+
+    final transaction = GoldTransaction.sell(
+      id: id,
+      date: date,
+      weight: weight,
+      price: price,
+      note: note,
+      ledgerId: ledgerId,
+    );
+
+    _transactionBox.put(id, _encryptTransaction(transaction));
     _cachedTransactions = null;
     notifyListeners();
   }
@@ -62,40 +100,41 @@ class TransactionProvider extends ChangeNotifier {
 
   // 加密整个交易对象
   GoldTransaction _encryptTransaction(GoldTransaction t) {
-    return t.copyWith(
-      note: t.note != null ? _encryptData(t.note!) : null,
-      // 可以加密其他敏感字段...
-    );
+    // return t.copyWith(
+    //   note: t.note != null ? _encryptData(t.note!) : null,
+    //   // 可以加密其他敏感字段...
+    // );
+    return t;
   }
 
   // 解密整个交易对象
   GoldTransaction _decryptTransaction(GoldTransaction transaction) {
-    return transaction.copyWith(
-      note: transaction.note != null ? _decryptData(transaction.note!) : null,
-      // 可以添加其他需要解密的字段...
-    );
+    // return transaction.copyWith(
+    //   note: transaction.note != null ? _decryptData(transaction.note!) : null,
+    //   // 可以添加其他需要解密的字段...
+    // );
+    return transaction;
   }
 
   // 加密敏感数据的方法
   String _encryptData(String data) {
     try {
-      final iv = encrypt.IV.fromLength(16);
-      final encrypted = _encrypter.encrypt(data, iv: iv);
+      // Hive 内部使用固定 IV，所以这里不需要 IV
+      final encrypted = _encrypter.encrypt(data);
       return encrypted.base64;
     } catch (e) {
       debugPrint('加密失败: $e');
-      throw Exception('数据加密失败，请检查加密配置');
+      throw Exception('数据加密失败');
     }
   }
 
-  // 解密敏感数据的方法
   String _decryptData(String encryptedData) {
     try {
-      final iv = encrypt.IV.fromLength(16);
-      return _encrypter.decrypt64(encryptedData, iv: iv);
+      // Hive 内部使用固定 IV
+      return _encrypter.decrypt64(encryptedData);
     } catch (e) {
       debugPrint('解密失败: $e');
-      throw Exception('数据解密失败，可能是加密密钥不匹配');
+      throw Exception('数据解密失败');
     }
   }
 

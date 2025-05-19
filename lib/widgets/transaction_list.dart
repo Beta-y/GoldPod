@@ -51,8 +51,8 @@ class TransactionListScreen extends StatelessWidget {
               itemBuilder: (ctx, index) {
                 final t = transactions[index];
                 return Dismissible(
-                  key: ValueKey(t.id), // 确保每个条目有唯一标识
-                  direction: DismissDirection.endToStart, // 只允许从右向左滑动
+                  key: ValueKey(t.id),
+                  direction: DismissDirection.endToStart,
                   background: Container(
                     color: Colors.red,
                     alignment: Alignment.centerRight,
@@ -60,7 +60,6 @@ class TransactionListScreen extends StatelessWidget {
                     child: const Icon(Icons.delete, color: Colors.white),
                   ),
                   confirmDismiss: (direction) async {
-                    // 显示确认对话框
                     return await showDialog(
                       context: context,
                       builder: (BuildContext context) {
@@ -83,8 +82,7 @@ class TransactionListScreen extends StatelessWidget {
                     );
                   },
                   onDismissed: (direction) {
-                    // 用户确认后执行删除操作
-                    transactionProvider.deleteTransaction(t.id!);
+                    transactionProvider.deleteTransaction(t.id);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
@@ -103,12 +101,20 @@ class TransactionListScreen extends StatelessWidget {
                           : Colors.red,
                     ),
                     title: Text(
-                      '${t.type == TransactionType.buy ? '买入' : '卖出'} ${t.weight}g',
+                      '${t.type == TransactionType.buy ? '买入' : '卖出'} ${NumberFormat("#,##0.0000").format(t.weight)}g',
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('价格: ${t.price}元/g'),
+                        Row(
+                          children: [
+                            Text(
+                                '价格: ${NumberFormat("#,##0.00").format(t.price)}元/g'),
+                            const SizedBox(width: 12),
+                            Text(
+                                '金额: ${NumberFormat("#,##0.00").format(t.amount)}元'),
+                          ],
+                        ),
                         if (t.note != null) Text('备注: ${t.note}'),
                       ],
                     ),

@@ -162,58 +162,93 @@ class InventoryScreen extends StatelessWidget {
   // 单个库存项（支持交互）
   Widget _buildInventoryItem(
       BuildContext context, InventoryItem item, InventoryStrategy strategy) {
+    final theme = Theme.of(context);
+    final isReduced = item.remainingWeight < item.transaction.weight;
+
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: InkWell(
-        onTap: () {
-          // TODO: 跳转到交易详情
-        },
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 第一行：重量和关联图标
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${item.remainingWeight.toStringAsFixed(4)}g',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              // 第二行：价格和日期
-              Row(
-                children: [
-                  _buildDetailChip(context, '单价',
-                      '${item.transaction.price.toStringAsFixed(2)}元'),
-                  const SizedBox(width: 8),
-                  _buildDetailChip(
-                    context,
-                    '日期',
-                    DateFormat('yyyy-MM-dd HH:mm:ss')
-                        .format(item.transaction.date),
-                  ),
-                ],
-              ),
-
-              // 备注（如果有）
-              if (item.transaction.note != null) ...[
-                const SizedBox(height: 8),
+        side: BorderSide(color: theme.dividerColor.withOpacity(0.2), width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 重量行 - 主信息区
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end, // 修改为底部对齐
+              children: [
+                // 当前重量
                 Text(
-                  '备注: ${item.transaction.note}',
-                  style: const TextStyle(color: Colors.grey),
+                  '${item.remainingWeight.toStringAsFixed(4)}g',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                // 右上角组合信息（固定高度容器）
+                SizedBox(
+                  height: 40, // 固定高度确保布局稳定
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // 原始重量
+                      Text(
+                        '原始 ${item.transaction.weight.toStringAsFixed(4)}g',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.hintColor,
+                        ),
+                      ),
+                      if (isReduced) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '卖出 ${(item.transaction.weight - item.remainingWeight).toStringAsFixed(4)}g',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.red[400],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+
+            // 辅助信息行（固定位置）
+            Row(
+              children: [
+                _buildDetailChip(
+                  context,
+                  '单价',
+                  '${item.transaction.price.toStringAsFixed(2)}元',
+                ),
+                const SizedBox(width: 8),
+                _buildDetailChip(
+                  context,
+                  '日期',
+                  DateFormat('yyyy-MM-dd HH:mm:ss')
+                      .format(item.transaction.date),
+                ),
+              ],
+            ),
+
+            // 备注（如有）
+            if (item.transaction.note != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                '备注：${item.transaction.note}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.hintColor,
+                ),
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );

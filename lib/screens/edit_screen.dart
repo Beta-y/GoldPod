@@ -16,6 +16,7 @@ class EditScreen extends StatefulWidget {
 
 class _EditScreenState extends State<EditScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _amountController = TextEditingController(); // 新增：金额输入
   final _weightController = TextEditingController();
   final _priceController = TextEditingController();
   final _dateController = TextEditingController();
@@ -29,6 +30,7 @@ class _EditScreenState extends State<EditScreen> {
     if (widget.existingTransaction != null) {
       final t = widget.existingTransaction!;
       _weightController.text = t.weight.toString();
+      _amountController.text = t.amount.toString(); // 初始化金额
       _priceController.text = t.price.toString();
       _dateController.text = DateFormat('yyyy-MM-dd HH:mm:ss').format(t.date);
       _noteController.text = t.note ?? '';
@@ -51,7 +53,11 @@ class _EditScreenState extends State<EditScreen> {
             children: [
               _buildTypeDropdown(context),
               const SizedBox(height: 20),
-              _buildWeightField(context),
+              // 根据交易类型显示不同输入字段
+              if (_transactionType == TransactionType.buy)
+                _buildAmountField(context),
+              if (_transactionType == TransactionType.sell)
+                _buildWeightField(context),
               const SizedBox(height: 20),
               _buildPriceField(context),
               const SizedBox(height: 20),
@@ -84,6 +90,25 @@ class _EditScreenState extends State<EditScreen> {
         labelText: '交易类型',
         border: const OutlineInputBorder(),
       ),
+    );
+  }
+
+  Widget _buildAmountField(BuildContext context) {
+    return TextFormField(
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+      cursorColor: Theme.of(context).colorScheme.onSurface,
+      controller: _amountController,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: '总额 (元)',
+        border: const OutlineInputBorder(),
+      ),
+      validator: (value) {
+        if (value == null || value.isEmpty) return '请输入总额';
+        final numValue = double.tryParse(value);
+        if (numValue == null || numValue <= 0) return '请输入有效总额';
+        return null;
+      },
     );
   }
 
@@ -234,28 +259,38 @@ class _EditScreenState extends State<EditScreen> {
   void _submitForm(BuildContext context) {
     if (_formKey.currentState?.validate() != true) return;
 
-    final transaction = GoldTransaction(
-      ledgerId: widget.ledgerId, // 使用传入的ledgerId
-      id: widget.existingTransaction?.id ??
-          DateTime.now().millisecondsSinceEpoch.toString(),
-      date: _selectedDate,
-      type: _transactionType,
-      weight: double.parse(_weightController.text),
-      price: double.parse(_priceController.text),
-      note: _noteController.text.isEmpty ? null : _noteController.text,
-    );
-
     final provider = Provider.of<TransactionProvider>(context, listen: false);
-    if (widget.existingTransaction != null) {
-      provider.updateTransaction(transaction);
+    final id = widget.existingTransaction?.id ??
+        DateTime.now().millisecondsSinceEpoch.toString();
+
+    if (_transactionType == TransactionType.buy) {
+      // 买入交易：使用金额和价格
+      provider.addBuyTransaction(
+        id: id,
+        date: _selectedDate,
+        amount: double.parse(_amountController.text),
+        price: double.parse(_priceController.text),
+        note: _noteController.text.isEmpty ? null : _noteController.text,
+        ledgerId: widget.ledgerId,
+      );
     } else {
-      provider.addTransaction(transaction);
+      // 卖出交易：使用重量和价格
+      provider.addSellTransaction(
+        id: id,
+        date: _selectedDate,
+        weight: double.parse(_weightController.text),
+        price: double.parse(_priceController.text),
+        note: _noteController.text.isEmpty ? null : _noteController.text,
+        ledgerId: widget.ledgerId,
+      );
     }
+
     Navigator.pop(context);
   }
 
   @override
   void dispose() {
+    _amountController.dispose();
     _weightController.dispose();
     _priceController.dispose();
     _dateController.dispose();
