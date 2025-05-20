@@ -100,26 +100,57 @@ class TransactionListScreen extends StatelessWidget {
                           ? Colors.green
                           : Colors.red,
                     ),
-                    title: Text(
-                      '${t.type == TransactionType.buy ? '买入' : '卖出'} ${NumberFormat("#,##0.0000").format(t.weight)}g',
-                    ),
-                    subtitle: Column(
+                    title: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                                '价格: ${NumberFormat("#,##0.00").format(t.price)}元/g'),
-                            const SizedBox(width: 12),
+                              '${t.type == TransactionType.buy ? '买入' : '卖出'} ${NumberFormat("#,##0.0000").format(t.weight)}g',
+                              style: TextStyle(
+                                fontSize: 16, // 最大字体
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             Text(
-                                '金额: ${NumberFormat("#,##0.00").format(t.amount)}元'),
+                              '￥${NumberFormat("#,##0.00").format(t.amount)}',
+                              style: TextStyle(
+                                fontSize: 14, // 中等字体
+                              ),
+                            ),
                           ],
                         ),
-                        if (t.note != null) Text('备注: ${t.note}'),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '￥${NumberFormat("#,##0.00").format(t.price)}/g',
+                              style: TextStyle(
+                                fontSize: 12, // 最小字体
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            Text(
+                              DateFormat('yyyy-MM-dd HH:mm:ss').format(t.date),
+                              style: TextStyle(
+                                fontSize: 12, // 最小字体
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (t.note != null)
+                          Text(
+                            '备注: ${t.note}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
                       ],
                     ),
-                    trailing:
-                        Text(DateFormat('yyyy-MM-dd HH:mm:ss').format(t.date)),
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(

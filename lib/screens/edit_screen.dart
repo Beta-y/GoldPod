@@ -100,6 +100,8 @@ class _EditScreenState extends State<EditScreen> {
       controller: _amountController,
       keyboardType: TextInputType.number,
       decoration: InputDecoration(
+        floatingLabelStyle:
+            TextStyle(color: Theme.of(context).colorScheme.onSurface),
         labelText: '总额 (元)',
         border: const OutlineInputBorder(),
       ),

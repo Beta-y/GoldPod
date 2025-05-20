@@ -93,7 +93,7 @@ class InventoryScreen extends StatelessWidget {
           children: [
             _buildSummaryRow('总持仓重量', '${totalWeight.toStringAsFixed(4)}g'),
             const Divider(height: 20),
-            _buildSummaryRow('平均成本价', '${avgPrice.toStringAsFixed(2)}元/g'),
+            _buildSummaryRow('平均成本价', '￥${avgPrice.toStringAsFixed(2)}/g'),
             const Divider(height: 20),
             _buildSummaryRow(
               '当前总价值',
@@ -165,6 +165,23 @@ class InventoryScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final isReduced = item.remainingWeight < item.transaction.weight;
 
+    // 辅助函数：格式化数字，添加前导空格
+    String formatNumber(double value, int maxIntegerDigits) {
+      final integerDigits = value.toStringAsFixed(0).length;
+      final leadingSpaces = ' ' * (maxIntegerDigits - integerDigits);
+      return '$leadingSpaces${value.toStringAsFixed(4)}';
+    }
+
+    // 计算需要对齐的数字的最大整数位数
+    final numbersToAlign = [
+      item.transaction.weight,
+      if (isReduced) item.transaction.weight - item.remainingWeight
+    ];
+    final maxIntegerDigits = numbersToAlign.fold<int>(0, (max, number) {
+      final integerDigits = number.toStringAsFixed(0).length;
+      return integerDigits > max ? integerDigits : max;
+    });
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
       elevation: 0,
@@ -172,100 +189,111 @@ class InventoryScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         side: BorderSide(color: theme.dividerColor.withOpacity(0.2), width: 1),
       ),
-      child: Padding(
+      child: Container(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
+          // 使用Stack实现浮动效果
           children: [
-            // 重量行 - 主信息区
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end, // 修改为底部对齐
+            // 主内容列
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 当前重量
+                // 当前重量（单独一行）
                 Text(
                   '${item.remainingWeight.toStringAsFixed(4)}g',
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w600,
+                    fontSize: 16,
                   ),
                 ),
+                const SizedBox(height: 22),
 
-                // 右上角组合信息（固定高度容器）
-                SizedBox(
-                  height: 40, // 固定高度确保布局稳定
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      // 原始重量
-                      Text(
-                        '原始 ${item.transaction.weight.toStringAsFixed(4)}g',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.hintColor,
-                        ),
-                      ),
-                      if (isReduced) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          '卖出 ${(item.transaction.weight - item.remainingWeight).toStringAsFixed(4)}g',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.red[400],
+                // 单价和日期行
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '单价: ￥${item.transaction.price.toStringAsFixed(2)}/g',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          // color: theme.hintColor,
                           ),
-                        ),
-                      ],
-                    ],
+                    ),
+                    Text(
+                      DateFormat('yyyy-MM-dd HH:mm:ss')
+                          .format(item.transaction.date),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        // color: theme.hintColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+
+                // 备注（如有）
+                if (item.transaction.note != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    '备注：${item.transaction.note}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.hintColor,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // 辅助信息行（固定位置）
-            Row(
-              children: [
-                _buildDetailChip(
-                  context,
-                  '单价',
-                  '${item.transaction.price.toStringAsFixed(2)}元',
-                ),
-                const SizedBox(width: 8),
-                _buildDetailChip(
-                  context,
-                  '日期',
-                  DateFormat('yyyy-MM-dd HH:mm:ss')
-                      .format(item.transaction.date),
-                ),
+                ],
               ],
             ),
 
-            // 备注（如有）
-            if (item.transaction.note != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                '备注：${item.transaction.note}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.hintColor,
+            // 浮动在左上角的原/卖信息
+            Positioned(
+              right: 0,
+              top: -3,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.45,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          const TextSpan(text: '原始: '),
+                          TextSpan(
+                            text:
+                                '${formatNumber(item.transaction.weight, maxIntegerDigits)}g',
+                          ),
+                        ],
+                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        // color: theme.hintColor,
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (isReduced) ...[
+                      const SizedBox(height: 4),
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            const TextSpan(text: '卖出: '),
+                            TextSpan(
+                              text:
+                                  '${formatNumber(item.transaction.weight - item.remainingWeight, maxIntegerDigits)}g',
+                            ),
+                          ],
+                        ),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: const Color.fromARGB(255, 255, 0, 0),
+                          fontSize: 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            ],
+            )
           ],
-        ),
-      ),
-    );
-  }
-
-  // 详情标签组件
-  Widget _buildDetailChip(BuildContext context, String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        '$label: $value',
-        style: TextStyle(
-          fontSize: 12,
-          color: Theme.of(context).colorScheme.onSurface,
         ),
       ),
     );

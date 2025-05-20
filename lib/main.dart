@@ -28,6 +28,10 @@ flutter pub get
 cd ..
 flutter run
 
+模拟器:
+emulator -list-avds
+emulator -avd Pixel_4_API_36
+
 卸载:
 adb uninstall com.example.bill_app
 
@@ -126,8 +130,8 @@ Future<void> _safeMigration() async {
     debugPrint('类型: ${transaction?.type == TransactionType.buy ? '买入' : '卖出'}');
     debugPrint('日期: ${transaction?.date}');
     debugPrint('重量: ${transaction?.weight}g');
-    debugPrint('价格: ${transaction?.price}元/g');
-    debugPrint('金额: ${transaction?.amount}元');
+    debugPrint('价格: ￥${transaction?.price}/g');
+    debugPrint('金额: ￥${transaction?.amount}');
     debugPrint('账本ID: ${transaction?.ledgerId}');
     debugPrint('备注: ${transaction?.note ?? '无'}');
   }
