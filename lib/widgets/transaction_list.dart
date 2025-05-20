@@ -49,7 +49,7 @@ class TransactionListScreen extends StatelessWidget {
           : ListView.builder(
               itemCount: transactions.length,
               itemBuilder: (ctx, index) {
-                final t = transactions[index];
+                final t = transactions.reversed.elementAt(index);
                 return Dismissible(
                   key: ValueKey(t.id),
                   direction: DismissDirection.endToStart,

@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider with ChangeNotifier {
   static const String _themeKey = "isDarkMode";
-  ThemeMode _themeMode = ThemeMode.light; // 默认改为亮色
+  ThemeMode _themeMode = ThemeMode.system; // 默认改为亮色
 
   ThemeMode get themeMode => _themeMode;
   bool get isDarkMode => _themeMode == ThemeMode.dark;
