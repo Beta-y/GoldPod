@@ -246,7 +246,7 @@ class InventoryScreen extends StatelessWidget {
             // 浮动在左上角的原/卖信息
             Positioned(
               right: 0,
-              top: -3,
+              top: 0,
               child: ConstrainedBox(
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.45,
