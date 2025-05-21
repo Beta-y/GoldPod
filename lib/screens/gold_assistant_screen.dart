@@ -7,6 +7,8 @@ import 'package:bill_app/widgets/inventory_list.dart';
 import 'package:bill_app/widgets/transaction_list.dart';
 import 'package:provider/provider.dart';
 import 'package:bill_app/providers/theme_provider.dart';
+import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:bill_app/providers/transaction_provider.dart';
 
 class _SwipeConfiguration {
   static const double fastSwipeVelocityThreshold = 700.0;

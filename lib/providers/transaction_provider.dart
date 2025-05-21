@@ -139,13 +139,15 @@ class TransactionProvider extends ChangeNotifier {
   }
 
   // 优化后的仓位计算方法
-  List<InventoryItem> calculateInventory() {
+  List<InventoryItem> calculateInventory(String ledgerId) {
     if (_strategy == InventoryStrategy.average) {
-      return _calculateAverageCost();
+      return _calculateAverageCost(ledgerId);
     }
-    final buys = _getSortedBuys();
-    final sells =
-        transactions.where((t) => t.type == TransactionType.sell).toList();
+    final buys = _getSortedBuys(ledgerId);
+    final sells = transactions
+        .where(
+            (t) => (t.type == TransactionType.sell) && (t.ledgerId == ledgerId))
+        .toList();
     final remainingMap = {for (var buy in buys) buy.id: buy.weight};
 
     for (final sell in sells) {
@@ -173,11 +175,15 @@ class TransactionProvider extends ChangeNotifier {
   }
 
 // 新增平均成本法计算
-  List<InventoryItem> _calculateAverageCost() {
-    final buys =
-        transactions.where((t) => t.type == TransactionType.buy).toList();
-    final sells =
-        transactions.where((t) => t.type == TransactionType.sell).toList();
+  List<InventoryItem> _calculateAverageCost(String ledgerId) {
+    final buys = transactions
+        .where(
+            (t) => (t.type == TransactionType.buy) && (t.ledgerId == ledgerId))
+        .toList();
+    final sells = transactions
+        .where(
+            (t) => (t.type == TransactionType.sell) && (t.ledgerId == ledgerId))
+        .toList();
     if (buys.isEmpty) return [];
 
     // 1. 计算总买入克重和总成本
@@ -206,9 +212,11 @@ class TransactionProvider extends ChangeNotifier {
   }
 
   // 优化后的买入记录排序方法
-  List<GoldTransaction> _getSortedBuys() {
-    final buys =
-        transactions.where((t) => t.type == TransactionType.buy).toList();
+  List<GoldTransaction> _getSortedBuys(String ledgerId) {
+    final buys = transactions
+        .where(
+            (t) => (t.type == TransactionType.buy) && (t.ledgerId == ledgerId))
+        .toList();
 
     switch (_strategy) {
       case InventoryStrategy.fifo:

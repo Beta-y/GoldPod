@@ -8,15 +8,16 @@ class InventoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ledgerId = Provider.of<String>(context);
     return Scaffold(
       appBar: null,
-      body: _buildInventoryContent(context),
+      body: _buildInventoryContent(context, ledgerId),
     );
   }
 
-  Widget _buildInventoryContent(BuildContext context) {
+  Widget _buildInventoryContent(BuildContext context, String ledgerId) {
     final provider = context.watch<TransactionProvider>();
-    final inventory = provider.calculateInventory(); // 自动响应策略变化
+    final inventory = provider.calculateInventory(ledgerId); // 自动响应策略变化
 
     return Column(
       children: [
