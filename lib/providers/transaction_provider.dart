@@ -138,34 +138,86 @@ class TransactionProvider extends ChangeNotifier {
     }
   }
 
-  // 优化后的仓位计算方法
-  List<InventoryItem> calculateInventory(String ledgerId) {
-    if (_strategy == InventoryStrategy.average) {
-      return _calculateAverageCost(ledgerId);
-    }
+  Map<String, dynamic> _calculateBaseData(String ledgerId) {
     final buys = _getSortedBuys(ledgerId);
     final sells = transactions
-        .where(
-            (t) => (t.type == TransactionType.sell) && (t.ledgerId == ledgerId))
-        .toList();
+        .where((t) => t.ledgerId == ledgerId && t.type == TransactionType.sell)
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+
     final remainingMap = {for (var buy in buys) buy.id: buy.weight};
+    final profitHistory = <double>[];
+    double totalCost = 0;
+    double totalRevenue = 0;
 
-    for (final sell in sells) {
-      double remainingSell = sell.weight;
-      if (remainingSell <= 0) continue;
+    if (_strategy == InventoryStrategy.average) {
+      final totalBuyWeight = buys.fold(0.0, (sum, buy) => sum + buy.weight);
+      final totalSellWeight = sells.fold(0.0, (sum, sell) => sum + sell.weight);
+      final remainingTotalWeight = totalBuyWeight - totalSellWeight;
+      final avgPrice = buys.isEmpty
+          ? 0
+          : buys.fold(0.0, (sum, buy) => sum + buy.weight * buy.price) /
+              totalBuyWeight;
 
-      for (final buy in buys) {
-        if (remainingSell <= 0) break;
-        final available = remainingMap[buy.id] ?? 0;
-        final deducted = min(available, remainingSell);
-        remainingMap[buy.id] = available - deducted;
-        remainingSell -= deducted;
+      // 计算利润
+      for (final sell in sells) {
+        final cost = sell.weight * avgPrice;
+        final revenue = sell.weight * sell.price;
+        totalCost += cost;
+        totalRevenue += revenue;
+        profitHistory.add(revenue - cost);
       }
 
-      if (remainingSell > 0) {
-        debugPrint('警告: 未能完全匹配卖出 ${sell.weight}g');
+      // 更新remainingMap（按比例分摊）
+      for (final buy in buys) {
+        final originalRatio = buy.weight / totalBuyWeight;
+        remainingMap[buy.id] = max(0.0, remainingTotalWeight * originalRatio);
+      }
+    } else {
+      for (final sell in sells) {
+        double remaining = sell.weight;
+        double sellCost = 0;
+
+        for (final buy in buys) {
+          if (remaining <= 0) break;
+          final available = remainingMap[buy.id] ?? 0;
+          final used = min(available, remaining);
+          sellCost += used * buy.price;
+          remainingMap[buy.id] = available - used;
+          remaining -= used;
+        }
+
+        final revenue = sell.weight * sell.price;
+        totalCost += sellCost;
+        totalRevenue += revenue;
+        profitHistory.add(revenue - sellCost);
       }
     }
+
+    // 计算累计利润
+    List<double> cumulative = [];
+    double total = 0;
+    for (final p in profitHistory) {
+      total += p;
+      cumulative.add(total);
+    }
+
+    return {
+      'buys': buys,
+      'sells': sells,
+      'remainingMap': remainingMap,
+      'totalCost': totalCost,
+      'totalRevenue': totalRevenue,
+      'profitHistory': profitHistory,
+      'cumulativeProfits': cumulative,
+    };
+  }
+
+  // 修改后的计算方法
+  List<InventoryItem> calculateInventory(String ledgerId) {
+    final data = _calculateBaseData(ledgerId);
+    final remainingMap = data['remainingMap'] as Map<String, double>;
+    final buys = data['buys'] as List<GoldTransaction>;
 
     return [
       for (final buy in buys)
@@ -174,41 +226,17 @@ class TransactionProvider extends ChangeNotifier {
     ];
   }
 
-// 新增平均成本法计算
-  List<InventoryItem> _calculateAverageCost(String ledgerId) {
-    final buys = transactions
-        .where(
-            (t) => (t.type == TransactionType.buy) && (t.ledgerId == ledgerId))
-        .toList();
-    final sells = transactions
-        .where(
-            (t) => (t.type == TransactionType.sell) && (t.ledgerId == ledgerId))
-        .toList();
-    if (buys.isEmpty) return [];
+  Map<String, double> calculateSellProfits(String ledgerId) {
+    final data = _calculateBaseData(ledgerId);
+    final cumulative = data['cumulativeProfits'] as List<double>;
 
-    // 1. 计算总买入克重和总成本
-    final totalBuyWeight = buys.fold(0.0, (sum, buy) => sum + buy.weight);
-    // final totalBuyCost =
-    //     buys.fold(0.0, (sum, buy) => sum + (buy.weight * buy.price));
-
-    // 2. 计算总卖出克重
-    final totalSellWeight = sells.fold(0.0, (sum, t) => sum + t.weight);
-
-    // 3. 计算剩余总克重和平均成本
-    final remainingTotalWeight = totalBuyWeight - totalSellWeight;
-    // final avgPrice = totalBuyCost / totalBuyWeight;
-
-    // 4. 按比例分摊剩余克重到各买入交易
-    final remainingMap = <String, double>{};
-    for (final buy in buys) {
-      final originalRatio = buy.weight / totalBuyWeight;
-      remainingMap[buy.id] = max(0.0, remainingTotalWeight * originalRatio);
-    }
-    return [
-      for (final buy in buys)
-        if ((remainingMap[buy.id] ?? 0) > 0)
-          InventoryItem(buy, remainingMap[buy.id]!)
-    ];
+    return {
+      'totalCost': data['totalCost'] as double,
+      'totalRevenue': data['totalRevenue'] as double,
+      'latestProfit': cumulative.isNotEmpty ? cumulative.last : 0,
+      'previousProfit':
+          cumulative.length > 1 ? cumulative[cumulative.length - 2] : 0,
+    };
   }
 
   // 优化后的买入记录排序方法

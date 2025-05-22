@@ -17,19 +17,15 @@ class InventoryScreen extends StatelessWidget {
 
   Widget _buildInventoryContent(BuildContext context, String ledgerId) {
     final provider = context.watch<TransactionProvider>();
-    final inventory = provider.calculateInventory(ledgerId); // 自动响应策略变化
+    final inventory = provider.calculateInventory(ledgerId);
+    final profits = provider.calculateSellProfits(ledgerId);
 
     return Column(
       children: [
-        // 策略选择器（吸顶效果）
         _buildStrategySelector(context, provider),
         const SizedBox(height: 8),
-
-        // 统计卡片
-        _buildSummaryCard(context, inventory),
+        _buildSummaryCard(context, inventory, profits),
         const SizedBox(height: 8),
-
-        // 仓位列表（自适应高度）
         Expanded(
           child:
               _buildInventoryList(context, inventory, provider.currentStrategy),
@@ -81,7 +77,10 @@ class InventoryScreen extends StatelessWidget {
 
   // 统计卡片（关键数据突出显示）
   Widget _buildSummaryCard(
-      BuildContext context, List<InventoryItem> inventory) {
+    BuildContext context,
+    List<InventoryItem> inventory,
+    Map<String, double> profits,
+  ) {
     final (totalWeight, avgPrice, totalValue) =
         _calculateInventoryTotals(inventory);
 
@@ -92,17 +91,52 @@ class InventoryScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildSummaryRow('总持仓重量', '${totalWeight.toStringAsFixed(4)}g'),
-            const Divider(height: 20),
+            _buildSummaryRow('持仓总重量', '${totalWeight.toStringAsFixed(4)}g'),
+            const Divider(height: 15),
             _buildSummaryRow('平均成本价', '￥${avgPrice.toStringAsFixed(2)}/g'),
-            const Divider(height: 20),
-            _buildSummaryRow(
-              '当前总价值',
-              '¥${totalValue.toStringAsFixed(2)}',
-              valueStyle: const TextStyle(
-                color: Colors.green,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+            const Divider(height: 15),
+            _buildSummaryRow('持仓总成本', '¥${totalValue.toStringAsFixed(2)}'),
+            const Divider(height: 15),
+            // 修改后的利润显示部分
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('最新累计利润', style: TextStyle(fontSize: 14)),
+                      Text(
+                        '前次累计利润',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).hintColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '¥${profits['latestProfit']!.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      Text(
+                        '¥${profits['previousProfit']!.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).hintColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
@@ -116,18 +150,12 @@ class InventoryScreen extends StatelessWidget {
       List<InventoryItem> inventory) {
     if (inventory.isEmpty) return (0.0, 0.0, 0.0);
 
-    final totalWeight = inventory.fold<double>(
-      0.0,
-      (sum, item) => sum + item.remainingWeight,
-    );
-
-    final totalValue = inventory.fold<double>(
-      0.0,
-      (sum, item) => sum + (item.remainingWeight * item.transaction.price),
-    );
-
+    final totalWeight =
+        inventory.fold<double>(0.0, (sum, item) => sum + item.remainingWeight);
+    final totalValue = inventory.fold<double>(0.0,
+        (sum, item) => sum + (item.remainingWeight * item.transaction.price));
     final avgPrice = totalWeight > 0 ? totalValue / totalWeight : 0.0;
-    return (totalWeight, avgPrice, totalValue); // 明确所有值为double
+    return (totalWeight, avgPrice, totalValue);
   }
 
   // 库存列表（支持空状态）
@@ -273,22 +301,24 @@ class InventoryScreen extends StatelessWidget {
                     ),
                     if (isReduced) ...[
                       const SizedBox(height: 4),
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            const TextSpan(text: '卖出: '),
-                            TextSpan(
-                              text:
-                                  '${formatNumber(item.transaction.weight - item.remainingWeight, maxIntegerDigits)}g',
-                            ),
-                          ],
+                      if ((item.transaction.weight - item.remainingWeight) >=
+                          0.00005)
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              const TextSpan(text: '卖出: '),
+                              TextSpan(
+                                text:
+                                    '${formatNumber(item.transaction.weight - item.remainingWeight, maxIntegerDigits)}g',
+                              ),
+                            ],
+                          ),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: const Color.fromARGB(255, 255, 0, 0),
+                            fontSize: 12,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: const Color.fromARGB(255, 255, 0, 0),
-                          fontSize: 12,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
                     ],
                   ],
                 ),
