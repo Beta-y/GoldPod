@@ -192,30 +192,36 @@ class _EditScreenState extends State<EditScreen> {
         ),
         IconButton(
           icon: const Icon(Icons.calendar_today),
-          onPressed: () => _selectDate(context),
+          onPressed: () => _selectDateTime(context),
         ),
       ],
     );
   }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final picked = await showDatePicker(
+  Future<void> _selectDateTime(BuildContext context) async {
+    // 在异步操作前检查 widget 是否已卸载
+    if (!mounted) return;
+
+    // 选择日期
+    final DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
       builder: (context, child) {
+        // 在构建弹窗时检查 widget 是否已卸载
+        if (!mounted) return const SizedBox.shrink(); // 返回一个占位 Widget
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: Colors.green, // 头部背景色
-              onPrimary: Colors.white, // 头部文字颜色
-              surface: Colors.grey[100]!, // 日历背景色
-              onSurface: Colors.black87, // 日历文字颜色
+              primary: Colors.green,
+              onPrimary: Colors.white,
+              surface: Theme.of(context).colorScheme.surface,
+              onSurface: Theme.of(context).colorScheme.onSurface,
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: Colors.black87, // "OK/CANCEL" 按钮颜色
+                foregroundColor: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -223,10 +229,54 @@ class _EditScreenState extends State<EditScreen> {
         );
       },
     );
-    if (picked != null && picked != _selectedDate) {
+
+    // 如果 widget 已卸载或用户未选择日期，直接返回
+    if (!mounted || pickedDate == null) return;
+
+    // 选择时间
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_selectedDate),
+      builder: (context, child) {
+        // 同样在构建时间选择器时检查
+        if (!mounted) return const SizedBox.shrink();
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.green,
+              onPrimary: Colors.white,
+              surface: Theme.of(context).colorScheme.surface,
+              onSurface: Theme.of(context).colorScheme.onSurface,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    // 如果 widget 已卸载或用户未选择时间，直接返回
+    if (!mounted || pickedTime == null) return;
+
+    // 合并日期和时间
+    final DateTime fullDateTime = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+
+    // 更新 UI（仅在 widget 未卸载时调用 setState）
+    if (mounted) {
       setState(() {
-        _selectedDate = picked;
-        _dateController.text = DateFormat('yyyy-MM-dd HH:mm:ss').format(picked);
+        _selectedDate = fullDateTime;
+        _dateController.text =
+            DateFormat('yyyy-MM-dd HH:mm:ss').format(fullDateTime);
       });
     }
   }
