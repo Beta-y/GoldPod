@@ -52,7 +52,9 @@ class TransactionListScreen extends StatelessWidget {
           : ListView.builder(
               itemCount: transactions.length,
               itemBuilder: (ctx, index) {
-                final t = transactions.reversed.elementAt(index);
+                final sortedTransactions = transactions.toList()
+                  ..sort((a, b) => b.date.compareTo(a.date));
+                final t = sortedTransactions[index];
                 return Column(
                   children: [
                     Dismissible(
