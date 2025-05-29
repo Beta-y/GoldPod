@@ -275,7 +275,23 @@ class TransactionProvider extends ChangeNotifier {
   List<InventoryItem> calculateInventory(String ledgerId) {
     final data = _calculateBaseData(ledgerId);
     final remainingMap = data['remainingMap'] as Map<String, double>;
-    final buys = data['buys'] as List<GoldTransaction>;
+
+    // 对data['buys']应用策略排序
+    final buys = (data['buys'] as List<GoldTransaction>)
+      ..sort((a, b) {
+        switch (_strategy) {
+          case InventoryStrategy.fifo:
+            return a.date.compareTo(b.date); // 先进先出（按时间升序）
+          case InventoryStrategy.lifo:
+            return b.date.compareTo(a.date); // 后进先出（按时间降序）
+          case InventoryStrategy.lowest:
+            return a.price.compareTo(b.price); // 最低价优先
+          case InventoryStrategy.highest:
+            return b.price.compareTo(a.price); // 最高价优先
+          case InventoryStrategy.average:
+            return 0; // 平均价保持原顺序
+        }
+      });
 
     return [
       for (final buy in buys)
