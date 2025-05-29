@@ -139,46 +139,104 @@ class TransactionProvider extends ChangeNotifier {
   }
 
   Map<String, dynamic> _calculateBaseData(String ledgerId) {
-    final buys = _getSortedBuys(ledgerId);
+    // 获取所有买入记录（保持原始顺序）
+    final allBuys = transactions
+        .where((t) => t.ledgerId == ledgerId && t.type == TransactionType.buy)
+        .toList();
+
+    // 获取所有卖出记录并按时间从早到晚排序
     final sells = transactions
         .where((t) => t.ledgerId == ledgerId && t.type == TransactionType.sell)
         .toList()
       ..sort((a, b) => a.date.compareTo(b.date));
 
-    final remainingMap = {for (var buy in buys) buy.id: buy.weight};
+    final remainingMap = {for (var buy in allBuys) buy.id: buy.weight};
     final profitHistory = <double>[];
     double totalCost = 0;
     double totalRevenue = 0;
 
     if (_strategy == InventoryStrategy.average) {
-      final totalBuyWeight = buys.fold(0.0, (sum, buy) => sum + buy.weight);
-      final totalSellWeight = sells.fold(0.0, (sum, sell) => sum + sell.weight);
-      final remainingTotalWeight = totalBuyWeight - totalSellWeight;
-      final avgPrice = buys.isEmpty
-          ? 0
-          : buys.fold(0.0, (sum, buy) => sum + buy.weight * buy.price) /
-              totalBuyWeight;
-
-      // 计算利润
+      // 专用平均成本法逻辑（动态比例）
       for (final sell in sells) {
+        // 1. 筛选卖出日期之前的可用买入记录
+        final eligibleBuys = allBuys
+            .where((buy) => buy.date.isBefore(sell.date))
+            .where((buy) => (remainingMap[buy.id] ?? 0) > 0)
+            .toList();
+
+        // 2. 计算当前可用库存的总重量和平均成本
+        final totalAvailableWeight = eligibleBuys.fold(
+            0.0, (sum, buy) => sum + (remainingMap[buy.id] ?? 0));
+
+        if (totalAvailableWeight == 0) continue;
+
+        final avgPrice = eligibleBuys.fold(
+              0.0,
+              (sum, buy) => sum + (remainingMap[buy.id] ?? 0) * buy.price,
+            ) /
+            totalAvailableWeight;
+
+        // 3. 计算本次卖出的成本
         final cost = sell.weight * avgPrice;
         final revenue = sell.weight * sell.price;
         totalCost += cost;
         totalRevenue += revenue;
         profitHistory.add(revenue - cost);
-      }
 
-      // 更新remainingMap（按比例分摊）
-      for (final buy in buys) {
-        final originalRatio = buy.weight / totalBuyWeight;
-        remainingMap[buy.id] = max(0.0, remainingTotalWeight * originalRatio);
+        // 4. 动态按比例扣除库存
+        var remainingToDeduct = sell.weight;
+        for (final buy in eligibleBuys) {
+          final available = remainingMap[buy.id] ?? 0;
+          final ratio = available / totalAvailableWeight;
+          final intendedDeduct = sell.weight * ratio; // 基于原始卖出量计算
+          final deducted = min(available, intendedDeduct);
+
+          remainingMap[buy.id] = available - deducted;
+          remainingToDeduct -= deducted;
+        }
+
+        // 处理浮点精度误差（如有剩余）
+        if (remainingToDeduct.abs() > 1e-6) {
+          for (final buy
+              in eligibleBuys.where((buy) => remainingMap[buy.id]! > 0)) {
+            final adjust = min(remainingMap[buy.id]!, remainingToDeduct);
+            remainingMap[buy.id] = remainingMap[buy.id]! - adjust;
+            remainingToDeduct -= adjust;
+            if (remainingToDeduct == 0) break;
+          }
+        }
       }
     } else {
+      // 其他策略保持原有逻辑（FIFO/LIFO/最低价/最高价）
       for (final sell in sells) {
+        // 获取卖出日期之前的买入记录并按策略排序
+        List<GoldTransaction> eligibleBuys = allBuys
+            .where((buy) => buy.date.isBefore(sell.date))
+            .where((buy) => (remainingMap[buy.id] ?? 0) > 0)
+            .toList();
+
+        // 按策略排序（与_getSortedBuys一致）
+        switch (_strategy) {
+          case InventoryStrategy.fifo:
+            eligibleBuys.sort((a, b) => a.date.compareTo(b.date));
+            break;
+          case InventoryStrategy.lifo:
+            eligibleBuys.sort((a, b) => b.date.compareTo(a.date));
+            break;
+          case InventoryStrategy.lowest:
+            eligibleBuys.sort((a, b) => a.price.compareTo(b.price));
+            break;
+          case InventoryStrategy.highest:
+            eligibleBuys.sort((a, b) => b.price.compareTo(a.price));
+            break;
+          case InventoryStrategy.average:
+            break; // 不会执行到这里
+        }
+
+        // 按策略扣除库存（非比例方式）
         double remaining = sell.weight;
         double sellCost = 0;
-
-        for (final buy in buys) {
+        for (final buy in eligibleBuys) {
           if (remaining <= 0) break;
           final available = remainingMap[buy.id] ?? 0;
           final used = min(available, remaining);
@@ -194,7 +252,7 @@ class TransactionProvider extends ChangeNotifier {
       }
     }
 
-    // 计算累计利润
+    // 计算累计利润（保持不变）
     List<double> cumulative = [];
     double total = 0;
     for (final p in profitHistory) {
@@ -203,7 +261,7 @@ class TransactionProvider extends ChangeNotifier {
     }
 
     return {
-      'buys': buys,
+      'buys': allBuys,
       'sells': sells,
       'remainingMap': remainingMap,
       'totalCost': totalCost,
