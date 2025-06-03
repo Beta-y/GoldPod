@@ -1,5 +1,5 @@
 name: bill_app
-description: 黄金交易助手
+description: 金豆夹
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -15,12 +15,13 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   flutter_secure_storage: ^9.2.4
-  encrypt: ^5.0.1 
+  encrypt: ^5.0.1
   path_provider: ^2.1.1
   analyzer: ^6.0.0
   hive_generator: ^2.0.1
   build_runner: ^2.4.15
   package_info_plus: ^8.3.0
+  flutter_svg: ^2.0.7
 
 dev_dependencies:
   flutter_test:
@@ -30,11 +31,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/gold_pod.svg  # 声明PNG资源（路径需与项目实际一致）
 
 flutter_launcher_icons:
-  image_path: "assets/icon/account_balance_wallet.png" # 你的图标路径
-  android: true
-  ios: true
-  remove_alpha_ios: true # iOS去除透明背景
-
+  android: "launcher_icon"  # Android图标配置
+  image_path: "assets/icon/gold_pod.png"  # 源图标路径
 version: 0.1.1+1

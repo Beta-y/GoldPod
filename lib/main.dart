@@ -20,6 +20,9 @@ import 'package:bill_app/models/gold_transaction.dart';
 生成适配器:
 dart run build_runner build
 
+生成图标:
+dart run flutter_launcher_icons:main
+
 构建:
 cd android
 ./gradlew clean
@@ -217,7 +220,7 @@ class _GoldTradingAppState extends State<GoldTradingApp>
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp(
-      title: '黄金交易助手',
+      title: '金豆夹',
       debugShowCheckedModeBanner: false,
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),

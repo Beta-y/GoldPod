@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:bill_app/providers/theme_provider.dart';
 import 'package:bill_app/screens/gold_assistant_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart'; // 新增包
+import 'package:flutter_svg/flutter_svg.dart';
 
 class HomeScreen extends StatefulWidget {
   // 改为StatefulWidget
@@ -36,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          '黄金交易助手',
+          '金豆夹',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -61,16 +62,18 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.account_balance_wallet,
-              size: 72,
-              color: isDarkMode
-                  ? const Color(0xFFFFD700)
-                  : const Color(0xFFD4AF37),
+            SvgPicture.asset(
+              'assets/icon/gold_pod.svg',
+              width: 72, // 直接指定尺寸
+              height: 72,
+              colorFilter: ColorFilter.mode(
+                isDarkMode ? const Color(0xFFFFD700) : const Color(0xFFD4AF37),
+                BlendMode.srcIn,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
-              '黄金交易助手',
+              '金豆夹',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -132,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                '© 2025 黄金交易助手 by Beta-y',
+                '© 2025 金豆夹 by Beta-y',
                 style: TextStyle(
                   fontSize: 12,
                   color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
