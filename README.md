@@ -50,8 +50,11 @@
   </figcaption>
 </figure>
 
+
 ## 下载方式
 
 途径 1: [Github Release](https://github.com/Beta-y/GoldPod/releases)
+
 途经 2 (国内): [Gitee Release](https://gitee.com/beta-y/GoldPod/releases)
+
 途经 3 (国内): [夸克网盘 Quark Pan](https://pan.quark.cn/s/4677fb555e63)
