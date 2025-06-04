@@ -20,12 +20,14 @@
   </figcaption>
 </figure>
 
+
 <figure style="text-align: center;">
   <img src="./attachments/images/transaction.jpg" width="50%" alt="主页 Home">
   <figcaption style="text-align:center; font-size:0.9em;">
     账目详情 Transaction
   </figcaption>
 </figure>
+
 
 4. [🐥亮点功能 1] 支持对账本内的成交记录按照多种策略进行持仓管理：
 ① 先入先出：即时间上先买入的被先卖出
@@ -40,6 +42,7 @@
     策略选择 Strategy
   </figcaption>
 </figure>
+
 
 5. [🐥亮点功能 2] 支持对账本内的持仓情况提供总揽，包括持仓总重量、平均成本价、持仓总成本、最新累计利润、前次累计利润，轻松获取自己当前成交是否赚钱！
 
