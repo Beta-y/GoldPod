@@ -35,6 +35,10 @@ flutter run
 emulator -list-avds
 emulator -avd Pixel_4_API_36
 
+真机:
+adb devices
+flutter run -d 4CBDU17610005480
+
 卸载:
 adb uninstall com.example.bill_app
 

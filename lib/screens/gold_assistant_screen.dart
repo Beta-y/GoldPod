@@ -9,6 +9,15 @@ import 'package:provider/provider.dart';
 import 'package:bill_app/providers/theme_provider.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:bill_app/providers/transaction_provider.dart';
+import 'dart:convert'; // 添加json编码支持
+import 'dart:io'; // 添加File支持
+import 'package:path_provider/path_provider.dart'; // 添加路径支持
+import 'package:open_file/open_file.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:io' show Platform, Process;
+import 'package:file_picker/file_picker.dart';
+import 'dart:typed_data';
+import 'dart:convert' show utf8, jsonEncode;
 
 class _SwipeConfiguration {
   static const double fastSwipeVelocityThreshold = 700.0;
@@ -54,6 +63,111 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
           ),
         );
       }
+    }
+  }
+
+  // 新增导出方法
+  Future<void> _exportAllData(BuildContext context) async {
+    try {
+      final ledgerBox = Hive.box<Ledger>('ledgers');
+      final transactionBox = Hive.box<GoldTransaction>('transactions');
+
+      // 准备导出数据
+      final exportData = {
+        'ledgers': ledgerBox.values
+            .map((ledger) => {
+                  'ledger': ledger.toJson(),
+                  'transactions': transactionBox.values
+                      .where((t) => t.ledgerId == ledger.id)
+                      .map((t) => t.toJson())
+                      .toList(),
+                })
+            .toList(),
+        'exportedAt': DateTime.now().toIso8601String(),
+      };
+
+      // 转换为字节数据
+      final String jsonStr = jsonEncode(exportData);
+      final Uint8List bytes = Uint8List.fromList(utf8.encode(jsonStr));
+      String savedPath = ''; // 明确定义路径变量
+
+      // 平台特定处理
+      if (Platform.isAndroid || Platform.isIOS) {
+        final String? result = await FilePicker.platform.saveFile(
+          dialogTitle: '保存导出文件',
+          fileName: 'goldpod_${DateTime.now().millisecondsSinceEpoch}.json',
+          bytes: bytes,
+          allowedExtensions: ['json'],
+        );
+        if (result == null) {
+          if (mounted)
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('导出已取消')));
+          return;
+        }
+        savedPath = result;
+      } else {
+        final String? selectedPath = await FilePicker.platform.saveFile(
+          dialogTitle: '选择导出位置',
+          fileName: 'gold_export_${DateTime.now().millisecondsSinceEpoch}.json',
+          allowedExtensions: ['json'],
+        );
+        if (selectedPath == null) {
+          if (mounted)
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('导出已取消')));
+          return;
+        }
+        await File(selectedPath).writeAsBytes(bytes);
+        savedPath = selectedPath;
+      }
+
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('导出成功'),
+          action: SnackBarAction(
+            label: '打开目录',
+            onPressed: () => _openFileDirectory(savedPath), // 使用明确定义的路径
+          ),
+        ));
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('导出失败: ${e.toString()}')));
+    }
+  }
+
+// 打开文件所在目录（跨平台实现）
+  void _openFileDirectory(String path) async {
+    final String parentDir = path.replaceAll(RegExp(r'[^/]+$'), '');
+
+    try {
+      // 方法1：使用 url_launcher（适用于所有平台）
+      final uri = Uri.directory(parentDir);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+        return;
+      }
+
+      // 方法2：平台特定实现（备用方案）
+      if (Platform.isAndroid || Platform.isIOS) {
+        // 移动端使用文件选择器（需要用户交互）
+        final String? selectedDir = await FilePicker.platform.getDirectoryPath(
+          initialDirectory: parentDir,
+        );
+        if (selectedDir != null) {
+          print("用户选择的目录: $selectedDir");
+        }
+      } else if (Platform.isWindows) {
+        await Process.run('explorer', [parentDir.replaceAll('/', '\\')]);
+      } else if (Platform.isMacOS) {
+        await Process.run('open', [parentDir]);
+      } else if (Platform.isLinux) {
+        await Process.run('xdg-open', [parentDir]);
+      }
+    } catch (e) {
+      print('打开目录失败: $e');
+      // 可以在这里添加错误处理，比如显示SnackBar
     }
   }
 
@@ -251,6 +365,12 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
         title: const Text('交易管理'),
         backgroundColor: Colors.black,
         foregroundColor: primaryColor,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.import_export, color: primaryColor),
+            onPressed: () => _showExportMenu(context),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: primaryColor,
@@ -473,6 +593,34 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
           size: 24,
         ),
       ),
+    );
+  }
+
+  void _showExportMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading:
+                  Icon(Icons.save_alt, color: Theme.of(context).primaryColor),
+              title: const Text('导出所有账本数据'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportAllData(context);
+              },
+            ),
+            ListTile(
+              leading:
+                  Icon(Icons.cancel, color: Theme.of(context).primaryColor),
+              title: const Text('取消'),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        );
+      },
     );
   }
 }

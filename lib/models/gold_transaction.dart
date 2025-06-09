@@ -148,6 +148,19 @@ class GoldTransaction {
   // 格式化日期显示
   String get formattedDate =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'date': date.toIso8601String(),
+      'type': type.index, // 0=buy, 1=sell
+      'weight': weight,
+      'price': price,
+      'amount': amount,
+      'note': note,
+      'ledgerId': ledgerId,
+    };
+  }
 }
 
 @HiveType(typeId: 2)

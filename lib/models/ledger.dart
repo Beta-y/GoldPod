@@ -37,4 +37,13 @@ class Ledger extends HiveObject {
       isPinned: isPinned ?? this.isPinned,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'createdAt': createdAt.toIso8601String(),
+      'isPinned': isPinned,
+    };
+  }
 }
