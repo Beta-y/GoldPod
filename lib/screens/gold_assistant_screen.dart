@@ -18,6 +18,7 @@ import 'dart:io' show Platform, Process;
 import 'package:file_picker/file_picker.dart';
 import 'dart:typed_data';
 import 'dart:convert' show utf8, jsonEncode;
+import 'package:flutter/services.dart'; // 添加这行
 
 class _SwipeConfiguration {
   static const double fastSwipeVelocityThreshold = 700.0;
@@ -43,6 +44,8 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
   DateTime _lastDragTime = DateTime.now();
   Offset _lastDragPosition = Offset.zero;
   double _currentVelocity = 0.0;
+
+  final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey();
 
   @override
   void initState() {
@@ -169,6 +172,124 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
       print('打开目录失败: $e');
       // 可以在这里添加错误处理，比如显示SnackBar
     }
+  }
+
+  // 新增导入方法
+  Future<void> _importData(BuildContext context) async {
+    try {
+      // 确保boxes已正确打开
+      if (!Hive.isBoxOpen('ledgers')) {
+        await Hive.openBox<Ledger>('ledgers');
+      }
+      if (!Hive.isBoxOpen('transactions')) {
+        await Hive.openBox<GoldTransaction>('transactions');
+      }
+
+      final ledgerBox = Hive.box<Ledger>('ledgers');
+      final transactionBox = Hive.box<GoldTransaction>('transactions');
+
+      // 1. 选择文件
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        withData: true, // 确保返回字节数据
+      );
+
+      if (result == null || result.files.isEmpty) {
+        _showSnackBar('导入已取消');
+        return;
+      }
+
+      final file = result.files.first;
+      if (!file.name.toLowerCase().endsWith('.json')) {
+        _showSnackBar('请选择 JSON 文件');
+        return;
+      }
+
+      // 2. 读取文件内容（添加空值检查）
+      if (file.bytes == null) {
+        throw Exception('文件内容为空');
+      }
+
+      final jsonStr = utf8.decode(file.bytes!);
+      final importData = json.decode(jsonStr);
+
+      // 3. 验证数据格式（增强检查）
+      if (importData['ledgers'] == null) {
+        throw const FormatException('文件格式不正确');
+      }
+
+      int importedLedgers = 0;
+      int importedTransactions = 0;
+
+      // 5. 导入账本（处理重复）
+      for (final ledgerData in importData['ledgers']) {
+        final ledgerJson = ledgerData['ledger'];
+        final existingLedger = ledgerBox.values.firstWhere(
+          (l) => l.id == ledgerJson['id'],
+          orElse: () => Ledger(id: '', name: '', createdAt: DateTime.now()),
+        );
+
+        if (existingLedger.id.isEmpty) {
+          ledgerBox.put(
+            ledgerJson['id'],
+            Ledger(
+              id: ledgerJson['id'],
+              name: ledgerJson['name'],
+              createdAt: DateTime.parse(ledgerJson['createdAt']),
+              isPinned: ledgerJson['isPinned'] ?? false,
+            ),
+          );
+          importedLedgers++;
+        } else {
+          existingLedger.name = ledgerJson['name'];
+          existingLedger.isPinned = ledgerJson['isPinned'] ?? false;
+          existingLedger.save();
+        }
+      }
+
+      // 6. 导入交易（处理重复）
+      for (final ledgerData in importData['ledgers']) {
+        final ledgerId = ledgerData['ledger']['id'];
+        for (final txnJson in ledgerData['transactions']) {
+          final existingTxn = transactionBox.get(txnJson['id']);
+
+          if (existingTxn == null) {
+            transactionBox.put(
+              txnJson['id'],
+              GoldTransaction(
+                id: txnJson['id'],
+                date: DateTime.parse(txnJson['date']),
+                type: TransactionType.values[txnJson['type']],
+                weight: txnJson['weight'].toDouble(),
+                price: txnJson['price'].toDouble(),
+                amount: txnJson['amount'].toDouble(),
+                note: txnJson['note'],
+                ledgerId: ledgerId,
+              ),
+            );
+            importedTransactions++;
+          }
+        }
+      }
+
+      // 7. 显示结果
+      _showSnackBar('导入成功: $importedLedgers个账本, $importedTransactions笔交易');
+    } on FormatException catch (e) {
+      _showSnackBar('文件格式错误: ${e.message}');
+    } on PlatformException catch (e) {
+      _showSnackBar('平台错误: ${e.message}');
+    } catch (e) {
+      _showSnackBar('导入失败: ${e.toString()}');
+    }
+  }
+
+// 添加辅助方法
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+
+    _scaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   void _createNewLedger() {
@@ -360,213 +481,216 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
         isDarkMode ? const Color(0xFFFFD700) : const Color(0xFFD4AF37);
     const errorColor = Colors.red;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('交易管理'),
-        backgroundColor: Colors.black,
-        foregroundColor: primaryColor,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.import_export, color: primaryColor),
-            onPressed: () => _showExportMenu(context),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: primaryColor,
-        onPressed: _createNewLedger,
-        child: const Icon(Icons.add, color: Colors.black),
-      ),
-      body: ValueListenableBuilder<Box<Ledger>>(
-        valueListenable: _ledgerBox.listenable(),
-        builder: (context, box, _) {
-          final ledgers = box.values.toList();
-          ledgers.sort((a, b) {
-            if (a.isPinned && !b.isPinned) return -1;
-            if (!a.isPinned && b.isPinned) return 1;
-            return b.createdAt.compareTo(a.createdAt);
-          });
+    return ScaffoldMessenger(
+      key: _scaffoldMessengerKey,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('交易管理'),
+          backgroundColor: Colors.black,
+          foregroundColor: primaryColor,
+          actions: [
+            IconButton(
+              icon: Icon(Icons.import_export, color: primaryColor),
+              onPressed: () => _showExportMenu(context),
+            ),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: primaryColor,
+          onPressed: _createNewLedger,
+          child: const Icon(Icons.add, color: Colors.black),
+        ),
+        body: ValueListenableBuilder<Box<Ledger>>(
+          valueListenable: _ledgerBox.listenable(),
+          builder: (context, box, _) {
+            final ledgers = box.values.toList();
+            ledgers.sort((a, b) {
+              if (a.isPinned && !b.isPinned) return -1;
+              if (!a.isPinned && b.isPinned) return 1;
+              return b.createdAt.compareTo(a.createdAt);
+            });
 
-          return ledgers.isEmpty
-              ? Center(
-                  child: Text(
-                    '暂无账本，点击右下角+号创建',
-                    style: TextStyle(
-                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+            return ledgers.isEmpty
+                ? Center(
+                    child: Text(
+                      '暂无账本，点击右下角+号创建',
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                      ),
                     ),
-                  ),
-                )
-              : ListView.builder(
-                  controller: _scrollController,
-                  itemCount: ledgers.length,
-                  itemExtent: 80,
-                  itemBuilder: (context, index) {
-                    final ledger = ledgers[index];
-                    return GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onHorizontalDragStart: (details) {
-                        _isSwiping = true;
-                        _dragDistance = 0.0;
-                        _lastDragTime = DateTime.now();
-                        _lastDragPosition = details.globalPosition;
-                      },
-                      onHorizontalDragUpdate: (details) {
-                        final now = DateTime.now();
-                        final elapsed =
-                            now.difference(_lastDragTime).inMilliseconds;
-
-                        if (elapsed > 0) {
-                          final distance =
-                              (details.globalPosition - _lastDragPosition)
-                                  .distance;
-                          _currentVelocity = distance / elapsed * 1000;
-                          _lastDragTime = now;
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    itemCount: ledgers.length,
+                    itemExtent: 80,
+                    itemBuilder: (context, index) {
+                      final ledger = ledgers[index];
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onHorizontalDragStart: (details) {
+                          _isSwiping = true;
+                          _dragDistance = 0.0;
+                          _lastDragTime = DateTime.now();
                           _lastDragPosition = details.globalPosition;
-                        }
+                        },
+                        onHorizontalDragUpdate: (details) {
+                          final now = DateTime.now();
+                          final elapsed =
+                              now.difference(_lastDragTime).inMilliseconds;
 
-                        _dragDistance += details.delta.dx.abs();
+                          if (elapsed > 0) {
+                            final distance =
+                                (details.globalPosition - _lastDragPosition)
+                                    .distance;
+                            _currentVelocity = distance / elapsed * 1000;
+                            _lastDragTime = now;
+                            _lastDragPosition = details.globalPosition;
+                          }
 
-                        final isFastSwipe = _currentVelocity >
-                            _SwipeConfiguration.fastSwipeVelocityThreshold;
-                        final threshold = isFastSwipe
-                            ? _SwipeConfiguration.minSwipeDistance / 2
-                            : _SwipeConfiguration.minSwipeDistance;
+                          _dragDistance += details.delta.dx.abs();
 
-                        if (_dragDistance > threshold) {
-                          if (details.delta.dx < -threshold) {
-                            _handleSwipe(index);
-                          } else if (details.delta.dx > threshold &&
-                              _swipedIndex == index) {
+                          final isFastSwipe = _currentVelocity >
+                              _SwipeConfiguration.fastSwipeVelocityThreshold;
+                          final threshold = isFastSwipe
+                              ? _SwipeConfiguration.minSwipeDistance / 2
+                              : _SwipeConfiguration.minSwipeDistance;
+
+                          if (_dragDistance > threshold) {
+                            if (details.delta.dx < -threshold) {
+                              _handleSwipe(index);
+                            } else if (details.delta.dx > threshold &&
+                                _swipedIndex == index) {
+                              _handleSwipe(index);
+                            }
+                          }
+                        },
+                        onHorizontalDragEnd: (details) {
+                          final endVelocity =
+                              details.velocity.pixelsPerSecond.dx.abs();
+                          _isSwiping = false;
+
+                          final shouldRebound = endVelocity <
+                                  _SwipeConfiguration.endVelocityThreshold &&
+                              _dragDistance <
+                                  _SwipeConfiguration.maxReboundDistance &&
+                              _swipedIndex == index;
+
+                          if (shouldRebound) {
                             _handleSwipe(index);
                           }
-                        }
-                      },
-                      onHorizontalDragEnd: (details) {
-                        final endVelocity =
-                            details.velocity.pixelsPerSecond.dx.abs();
-                        _isSwiping = false;
-
-                        final shouldRebound = endVelocity <
-                                _SwipeConfiguration.endVelocityThreshold &&
-                            _dragDistance <
-                                _SwipeConfiguration.maxReboundDistance &&
-                            _swipedIndex == index;
-
-                        if (shouldRebound) {
-                          _handleSwipe(index);
-                        }
-                      },
-                      onTap: () {
-                        if (!_isSwiping && _swipedIndex == index) {
-                          _handleSwipe(index);
-                        }
-                      },
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Positioned.fill(
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 0),
-                              child: Card(
-                                color: isDarkMode
-                                    ? Colors.grey[800]
-                                    : Colors.white,
-                                child: ListTile(
-                                  leading: Icon(Icons.account_balance_wallet,
-                                      color: primaryColor),
-                                  title: Text(ledger.name),
-                                  subtitle: Text(
-                                    '创建于: ${ledger.createdAt.toString().split(' ')[0]}',
-                                    style: TextStyle(
-                                      color: isDarkMode
-                                          ? Colors.grey[400]
-                                          : Colors.grey[600],
+                        },
+                        onTap: () {
+                          if (!_isSwiping && _swipedIndex == index) {
+                            _handleSwipe(index);
+                          }
+                        },
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned.fill(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 0),
+                                child: Card(
+                                  color: isDarkMode
+                                      ? Colors.grey[800]
+                                      : Colors.white,
+                                  child: ListTile(
+                                    leading: Icon(Icons.account_balance_wallet,
+                                        color: primaryColor),
+                                    title: Text(ledger.name),
+                                    subtitle: Text(
+                                      '创建于: ${ledger.createdAt.toString().split(' ')[0]}',
+                                      style: TextStyle(
+                                        color: isDarkMode
+                                            ? Colors.grey[400]
+                                            : Colors.grey[600],
+                                      ),
                                     ),
-                                  ),
-                                  trailing: _swipedIndex == index
-                                      ? null
-                                      : (ledger.isPinned
-                                          ? Transform.translate(
-                                              offset:
-                                                  const Offset(0, 0), // X/Y轴微调
-                                              child: Icon(
-                                                Icons.push_pin,
-                                                color: primaryColor,
-                                                size: 24, // 缩小图标
-                                              ),
-                                            )
-                                          : null),
-                                  onTap: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => GoldAssistantScreen(
-                                          ledgerId: ledger.id,
-                                          ledgerName: ledger.name),
+                                    trailing: _swipedIndex == index
+                                        ? null
+                                        : (ledger.isPinned
+                                            ? Transform.translate(
+                                                offset: const Offset(
+                                                    0, 0), // X/Y轴微调
+                                                child: Icon(
+                                                  Icons.push_pin,
+                                                  color: primaryColor,
+                                                  size: 24, // 缩小图标
+                                                ),
+                                              )
+                                            : null),
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => GoldAssistantScreen(
+                                            ledgerId: ledger.id,
+                                            ledgerName: ledger.name),
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          Positioned(
-                            right: 16,
-                            top: 8,
-                            bottom: 8,
-                            child: IgnorePointer(
-                              ignoring: _swipedIndex != index,
-                              child: AnimatedOpacity(
-                                duration: const Duration(milliseconds: 200),
-                                opacity: _swipedIndex == index ? 1.0 : 0.0,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: null,
-                                    borderRadius: BorderRadius.circular(5),
-                                  ),
-                                  padding:
-                                      const EdgeInsets.symmetric(horizontal: 5),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      _buildActionButton(
-                                        icon: Icons.push_pin,
-                                        color: primaryColor,
-                                        onTap: () => _togglePin(ledger),
-                                        isActive: ledger.isPinned,
-                                        size: 40,
-                                      ),
-                                      const SizedBox(width: 5),
-                                      _buildActionButton(
-                                        icon: Icons.edit,
-                                        color: primaryColor,
-                                        onTap: () {
-                                          _handleSwipe(index);
-                                          _editLedger(ledger);
-                                        },
-                                        size: 40,
-                                      ),
-                                      const SizedBox(width: 5),
-                                      _buildActionButton(
-                                        icon: Icons.delete,
-                                        color: errorColor,
-                                        onTap: () {
-                                          _handleSwipe(index);
-                                          _deleteLedger(ledger.id);
-                                        },
-                                        size: 40,
-                                      ),
-                                    ],
+                            Positioned(
+                              right: 16,
+                              top: 8,
+                              bottom: 8,
+                              child: IgnorePointer(
+                                ignoring: _swipedIndex != index,
+                                child: AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 200),
+                                  opacity: _swipedIndex == index ? 1.0 : 0.0,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: null,
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _buildActionButton(
+                                          icon: Icons.push_pin,
+                                          color: primaryColor,
+                                          onTap: () => _togglePin(ledger),
+                                          isActive: ledger.isPinned,
+                                          size: 40,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        _buildActionButton(
+                                          icon: Icons.edit,
+                                          color: primaryColor,
+                                          onTap: () {
+                                            _handleSwipe(index);
+                                            _editLedger(ledger);
+                                          },
+                                          size: 40,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        _buildActionButton(
+                                          icon: Icons.delete,
+                                          color: errorColor,
+                                          onTap: () {
+                                            _handleSwipe(index);
+                                            _deleteLedger(ledger.id);
+                                          },
+                                          size: 40,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-        },
+                          ],
+                        ),
+                      );
+                    },
+                  );
+          },
+        ),
       ),
     );
   }
@@ -610,6 +734,15 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
               onTap: () {
                 Navigator.pop(context);
                 _exportAllData(context);
+              },
+            ),
+            ListTile(
+              leading:
+                  Icon(Icons.upload, color: Theme.of(context).primaryColor),
+              title: const Text('导入数据'),
+              onTap: () {
+                Navigator.pop(context);
+                _importData(context);
               },
             ),
             ListTile(
