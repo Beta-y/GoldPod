@@ -69,7 +69,7 @@ applicationVariants.all {
             val date = dateFormat.format(Date())
 
             (this as BaseVariantOutputImpl).outputFileName =
-                "GodPod_${versionName}.apk"
+                "GodPod_v${versionName}.apk"
         }
     }
 }

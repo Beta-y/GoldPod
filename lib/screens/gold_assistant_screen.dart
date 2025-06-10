@@ -1,24 +1,16 @@
 import 'package:bill_app/models/gold_transaction.dart';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:bill_app/models/ledger.dart';
 import 'package:bill_app/widgets/inventory_list.dart';
 import 'package:bill_app/widgets/transaction_list.dart';
 import 'package:provider/provider.dart';
 import 'package:bill_app/providers/theme_provider.dart';
-import 'package:encrypt/encrypt.dart' as encrypt;
-import 'package:bill_app/providers/transaction_provider.dart';
 import 'dart:convert'; // 添加json编码支持
 import 'dart:io'; // 添加File支持
-import 'package:path_provider/path_provider.dart'; // 添加路径支持
-import 'package:open_file/open_file.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:io' show Platform, Process;
 import 'package:file_picker/file_picker.dart';
-import 'dart:typed_data';
-import 'dart:convert' show utf8, jsonEncode;
-import 'package:flutter/services.dart'; // 添加这行
+import 'package:flutter/services.dart';
 
 class _SwipeConfiguration {
   static const double fastSwipeVelocityThreshold = 700.0;
@@ -730,7 +722,7 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
             ListTile(
               leading:
                   Icon(Icons.save_alt, color: Theme.of(context).primaryColor),
-              title: const Text('导出所有账本数据'),
+              title: const Text('导出数据'),
               onTap: () {
                 Navigator.pop(context);
                 _exportAllData(context);

@@ -41,4 +41,4 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"  # Android图标配置
   image_path: "assets/icon/gold_pod.png"  # 源图标路径
-version: 0.1.1+1
+version: 0.1.2+1
