@@ -1,10 +1,13 @@
 import 'package:bill_app/models/gold_transaction.dart';
+import 'package:bill_app/widgets/profit_list.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:bill_app/models/ledger.dart';
 import 'package:bill_app/widgets/inventory_list.dart';
 import 'package:bill_app/widgets/transaction_list.dart';
+import 'package:bill_app/widgets/profit_list.dart';
 import 'package:provider/provider.dart';
+import 'package:bill_app/providers/profit_provider.dart';
 import 'package:bill_app/providers/theme_provider.dart';
 import 'dart:convert'; // 添加json编码支持
 import 'dart:io'; // 添加File支持
@@ -752,12 +755,12 @@ class _LedgerManagementScreenState extends State<LedgerManagementScreen> {
 
 class GoldAssistantScreen extends StatelessWidget {
   final String ledgerId;
-  final String ledgerName; // 新增参数
+  final String ledgerName;
 
   const GoldAssistantScreen({
     super.key,
     required this.ledgerId,
-    required this.ledgerName, // 必传参数
+    required this.ledgerName,
   });
 
   @override
@@ -766,42 +769,61 @@ class GoldAssistantScreen extends StatelessWidget {
     final isDarkMode = themeProvider.isDarkMode;
     final primaryColor =
         isDarkMode ? const Color(0xFFFFD700) : const Color(0xFFD4AF37);
-    return Provider.value(
-      value: ledgerId,
-      child: DefaultTabController(
-        length: 2,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(ledgerName),
-            backgroundColor: Colors.black,
-            foregroundColor: primaryColor,
-            bottom: TabBar(
-              tabs: const [
-                Tab(
-                  child: Text(
-                    '账目',
-                    style: TextStyle(
-                      color: Colors.white,
+
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+            create: (_) => ProfitProvider()), // 新增ProfitProvider
+      ],
+      child: Provider.value(
+        value: ledgerId,
+        child: DefaultTabController(
+          length: 3,
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text(ledgerName),
+              backgroundColor: Colors.black,
+              foregroundColor: primaryColor,
+              bottom: TabBar(
+                tabs: const [
+                  Tab(
+                    child: Text(
+                      '账目',
+                      style: TextStyle(
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                ),
-                Tab(
-                  child: Text(
-                    '仓位',
-                    style: TextStyle(
-                      color: Colors.white,
+                  Tab(
+                    child: Text(
+                      '仓位',
+                      style: TextStyle(
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                ),
-              ],
-              indicatorColor: Theme.of(context).colorScheme.secondary,
-              labelColor: Theme.of(context).textTheme.bodyLarge?.color,
-              unselectedLabelColor:
-                  Theme.of(context).textTheme.bodyMedium?.color,
+                  Tab(
+                    child: Text(
+                      '利润',
+                      style: TextStyle(
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+                indicatorColor: Theme.of(context).colorScheme.secondary,
+                labelColor: Theme.of(context).textTheme.bodyLarge?.color,
+                unselectedLabelColor:
+                    Theme.of(context).textTheme.bodyMedium?.color,
+              ),
             ),
-          ),
-          body: const TabBarView(
-            children: [TransactionListScreen(), InventoryScreen()],
+            body: const TabBarView(
+              children: [
+                TransactionListScreen(),
+                InventoryScreen(),
+                ProfitScreen(), // 新增利润列表
+              ],
+            ),
           ),
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/profit_provider.dart';
 
 class InventoryScreen extends StatelessWidget {
   const InventoryScreen({super.key});
@@ -17,12 +18,13 @@ class InventoryScreen extends StatelessWidget {
 
   Widget _buildInventoryContent(BuildContext context, String ledgerId) {
     final provider = context.watch<TransactionProvider>();
+    final provider_profit = context.watch<ProfitProvider>();
     final inventory = provider.calculateInventory(ledgerId);
     final profits = provider.calculateSellProfits(ledgerId);
 
     return Column(
       children: [
-        _buildStrategySelector(context, provider),
+        _buildStrategySelector(context, provider, provider_profit),
         const SizedBox(height: 8),
         _buildSummaryCard(context, inventory, profits),
         const SizedBox(height: 8),
@@ -35,8 +37,8 @@ class InventoryScreen extends StatelessWidget {
   }
 
   // 策略选择器（带视觉反馈）
-  Widget _buildStrategySelector(
-      BuildContext context, TransactionProvider provider) {
+  Widget _buildStrategySelector(BuildContext context,
+      TransactionProvider provider, ProfitProvider provider_profit) {
     return Material(
       elevation: 2,
       child: Padding(
@@ -65,6 +67,7 @@ class InventoryScreen extends StatelessWidget {
                 onChanged: (value) {
                   if (value != null) {
                     provider.setStrategy(value);
+                    provider_profit.setStrategy(value);
                   }
                 },
               ),
