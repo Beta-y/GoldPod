@@ -295,7 +295,7 @@ class TransactionProvider extends ChangeNotifier {
 
     return [
       for (final buy in buys)
-        if ((remainingMap[buy.id] ?? 0) > 0)
+        if ((remainingMap[buy.id] ?? 0) >= 0.00005)
           InventoryItem(buy, remainingMap[buy.id]!)
     ];
   }
