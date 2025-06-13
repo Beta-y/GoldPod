@@ -59,271 +59,170 @@ class _ProfitListState extends State<ProfitScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(4), // 减少外层padding
       itemCount: profits.length,
       itemBuilder: (context, index) {
         final yearProfit = profits[index];
         return Card(
-          margin: const EdgeInsets.symmetric(vertical: 4),
+          margin: const EdgeInsets.symmetric(vertical: 2), // 减少卡片间距
           child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(horizontal: 8), // 调整标题内边距
+            dense: true, // 启用紧凑模式
             key: ValueKey(yearProfit.year),
             initiallyExpanded: true,
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('${yearProfit.year}年'),
+                Text(
+                  '${yearProfit.year}年',
+                  style: const TextStyle(fontSize: 14), // 减小字体
+                ),
                 _buildProfitText(yearProfit.totalProfit),
               ],
             ),
             children: [
-              ...yearProfit.monthProfits.map((monthProfit) {
-                return Padding(
-                  padding: const EdgeInsets.only(left: 16),
-                  child: ExpansionTile(
-                    key: ValueKey('${yearProfit.year}_${monthProfit.month}'),
-                    initiallyExpanded: true,
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('${monthProfit.month}月'),
-                        _buildProfitText(monthProfit.totalProfit),
-                      ],
-                    ),
-                    children: [
-                      ...monthProfit.dayProfits.map((dayProfit) {
-                        return Padding(
-                          padding: const EdgeInsets.only(left: 32),
-                          child: ExpansionTile(
-                            key: ValueKey(
-                                '${yearProfit.year}_${monthProfit.month}_${dayProfit.day}'),
-                            initiallyExpanded: true,
-                            title: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('${dayProfit.day}日'),
-                                _buildProfitText(dayProfit.totalProfit),
-                              ],
-                            ),
+              Padding(
+                // 添加Padding包裹children内容
+                padding: const EdgeInsets.only(left: 8, right: 8, bottom: 4),
+                child: Column(
+                  children: [
+                    ...yearProfit.monthProfits.map((monthProfit) {
+                      return Padding(
+                        padding: const EdgeInsets.only(left: 8), // 减少缩进
+                        child: ExpansionTile(
+                          tilePadding:
+                              const EdgeInsets.symmetric(horizontal: 8),
+                          dense: true,
+                          key: ValueKey(
+                              '${yearProfit.year}_${monthProfit.month}'),
+                          initiallyExpanded: true,
+                          title: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              ...dayProfit.transactionProfits.map((txnProfit) {
-                                final sellTransaction =
-                                    Hive.box<GoldTransaction>('transactions')
-                                        .get(txnProfit.transactionId);
-                                if (sellTransaction == null ||
-                                    sellTransaction.type !=
-                                        TransactionType.sell) {
-                                  return const SizedBox
-                                      .shrink(); // 返回空Widget或错误提示
-                                }
-
-                                final relatedBuys =
-                                    Provider.of<ProfitProvider>(context)
-                                        .findRelatedBuys(
-                                            sellTransaction.id, ledgerId);
-
-                                return Padding(
-                                  padding: const EdgeInsets.only(left: 48),
-                                  child: Column(
-                                    children: [
-                                      // 卖出卡片
-                                      Card(
-                                        margin:
-                                            const EdgeInsets.only(bottom: 8),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(12),
-                                          child: Column(
-                                            children: [
-                                              Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Icon(
-                                                        Icons.arrow_downward,
-                                                        color: Colors.red,
-                                                        size: 20,
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      Text(
-                                                        '卖出 ${NumberFormat("#,##0.0000").format(sellTransaction?.weight ?? 0)}g',
-                                                        style: const TextStyle(
-                                                          fontSize: 16,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  Text(
-                                                    '￥${NumberFormat("#,##0.00").format(sellTransaction?.amount ?? 0)}',
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
-                                                children: [
-                                                  Text(
-                                                    '￥${NumberFormat("#,##0.00").format(sellTransaction?.price ?? 0)}/g',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: Colors.grey[600],
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    DateFormat(
-                                                            'yyyy-MM-dd HH:mm:ss')
-                                                        .format(sellTransaction
-                                                                ?.date ??
-                                                            DateTime.now()),
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: Colors.grey[600],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              if (sellTransaction?.note != null)
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                          top: 6),
-                                                  child: Text(
-                                                    '备注: ${sellTransaction?.note}',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: Colors.grey[600],
-                                                    ),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
+                              Text(
+                                '${monthProfit.month}月',
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              _buildProfitText(monthProfit.totalProfit),
+                            ],
+                          ),
+                          children: [
+                            Padding(
+                              // 添加Padding包裹children内容
+                              padding: const EdgeInsets.only(
+                                  left: 8, right: 8, bottom: 4),
+                              child: Column(
+                                children: [
+                                  ...monthProfit.dayProfits.map((dayProfit) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                          left: 16), // 减少缩进
+                                      child: ExpansionTile(
+                                        tilePadding: const EdgeInsets.symmetric(
+                                            horizontal: 8),
+                                        dense: true,
+                                        key: ValueKey(
+                                            '${yearProfit.year}_${monthProfit.month}_${dayProfit.day}'),
+                                        initiallyExpanded: false,
+                                        title: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              '${dayProfit.day}日',
+                                              style:
+                                                  const TextStyle(fontSize: 14),
+                                            ),
+                                            _buildProfitText(
+                                                dayProfit.totalProfit),
+                                          ],
                                         ),
-                                      ),
+                                        children: [
+                                          Padding(
+                                            // 添加Padding包裹children内容
+                                            padding: const EdgeInsets.only(
+                                                left: 8, right: 8, bottom: 4),
+                                            child: Column(
+                                              children: [
+                                                ...dayProfit.transactionProfits
+                                                    .map((txnProfit) {
+                                                  final sellTransaction =
+                                                      Hive.box<GoldTransaction>(
+                                                              'transactions')
+                                                          .get(txnProfit
+                                                              .transactionId);
 
-                                      // 关联买入卡片列表
-                                      ...relatedBuys
-                                          .map((buy) => Card(
-                                                margin: const EdgeInsets.only(
-                                                    bottom: 8),
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.all(12),
-                                                  child: Column(
-                                                    children: [
-                                                      Row(
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .spaceBetween,
-                                                        children: [
-                                                          Row(
-                                                            children: [
-                                                              Icon(
-                                                                Icons
-                                                                    .arrow_upward,
-                                                                color: Colors
-                                                                    .green,
-                                                                size: 20,
-                                                              ),
-                                                              const SizedBox(
-                                                                  width: 8),
-                                                              Text(
-                                                                '买入 ${NumberFormat("#,##0.0000").format(buy.weight)}g',
-                                                                style:
-                                                                    const TextStyle(
-                                                                  fontSize: 16,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          Text(
-                                                            '￥${NumberFormat("#,##0.00").format(buy.amount)}',
-                                                            style:
-                                                                const TextStyle(
-                                                              fontSize: 14,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      const SizedBox(height: 6),
-                                                      Row(
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .spaceBetween,
-                                                        children: [
-                                                          Text(
-                                                            '￥${NumberFormat("#,##0.00").format(buy.price)}/g',
-                                                            style: TextStyle(
-                                                              fontSize: 12,
-                                                              color: Colors
-                                                                  .grey[600],
-                                                            ),
-                                                          ),
-                                                          Text(
-                                                            DateFormat(
-                                                                    'yyyy-MM-dd HH:mm:ss')
-                                                                .format(
-                                                                    buy.date),
-                                                            style: TextStyle(
-                                                              fontSize: 12,
-                                                              color: Colors
-                                                                  .grey[600],
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      if (buy.note != null)
+                                                  if (sellTransaction == null ||
+                                                      sellTransaction.type !=
+                                                          TransactionType
+                                                              .sell) {
+                                                    return const SizedBox
+                                                        .shrink();
+                                                  }
+
+                                                  final provider = Provider.of<
+                                                          ProfitProvider>(
+                                                      context,
+                                                      listen: false);
+                                                  final relatedBuys =
+                                                      provider.findRelatedBuys(
+                                                          sellTransaction.id,
+                                                          ledgerId);
+
+                                                  return Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                            left: 24), // 减少缩进
+                                                    child: Column(
+                                                      children: [
+                                                        // 卖出卡片
+                                                        _buildTransactionCard(
+                                                          transaction:
+                                                              sellTransaction,
+                                                          isBuy: false,
+                                                        ),
+
+                                                        // 关联买入卡片列表
+                                                        ...relatedBuys
+                                                            .map((buy) {
+                                                          return _buildTransactionCard(
+                                                              transaction: buy,
+                                                              isBuy: true);
+                                                        }).toList(),
+
+                                                        // 利润显示
                                                         Padding(
                                                           padding:
                                                               const EdgeInsets
-                                                                  .only(top: 6),
-                                                          child: Text(
-                                                            '备注: ${buy.note}',
-                                                            style: TextStyle(
-                                                              fontSize: 12,
-                                                              color: Colors
-                                                                  .grey[600],
-                                                            ),
-                                                          ),
+                                                                  .only(
+                                                                  top:
+                                                                      2), // 减少间距
+                                                          child:
+                                                              _buildProfitText(
+                                                                  txnProfit
+                                                                      .profit),
                                                         ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ))
-                                          .toList(),
-
-                                      // 利润显示
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(
-                                              top: 8, right: 8),
-                                          child: _buildProfitText(
-                                              txnProfit.profit),
-                                        ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                }).toList(),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ],
-                  ),
-                );
-              }).toList(),
+                                    );
+                                  }).toList(),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
             ],
             onExpansionChanged: (expanded) {
               setState(() {
@@ -333,6 +232,94 @@ class _ProfitListState extends State<ProfitScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildTransactionCard({
+    required GoldTransaction transaction,
+    required bool isBuy,
+    String? extraInfo,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isBuy ? Icons.arrow_upward : Icons.arrow_downward,
+                      color: isBuy ? Colors.green : Colors.red,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${isBuy ? '买入' : '卖出'} ${NumberFormat("#,##0.0000").format(transaction.weight)}g',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '￥${NumberFormat("#,##0.00").format(transaction.amount)}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '￥${NumberFormat("#,##0.00").format(transaction.price)}/g',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  DateFormat('yyyy-MM-dd HH:mm:ss').format(transaction.date),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            if (transaction.note != null && transaction.note!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  '备注: ${transaction.note}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ),
+            if (extraInfo != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  extraInfo,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue[700],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

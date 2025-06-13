@@ -5,17 +5,38 @@ import '../providers/transaction_provider.dart';
 import 'dart:math';
 
 class ProfitProvider with ChangeNotifier {
+  Map<String, dynamic>? _cachedProfitData;
+  String? _cachedLedgerId;
+  InventoryStrategy? _cachedStrategy;
+
   InventoryStrategy _currentStrategy = InventoryStrategy.fifo;
 
   InventoryStrategy get currentStrategy => _currentStrategy;
 
   void setStrategy(InventoryStrategy strategy) {
-    _currentStrategy = strategy;
+    if (_currentStrategy != strategy) {
+      _currentStrategy = strategy;
+      _cachedProfitData = null; // 清除缓存
+      notifyListeners();
+    }
+  }
+
+  void clearCache() {
+    _cachedProfitData = null;
+    _cachedLedgerId = null;
     notifyListeners();
   }
 
-  // 复制自TransactionProvider的_calculateBaseData实现
   Map<String, dynamic> _calculateProfitBaseData(String ledgerId) {
+    if (_cachedProfitData != null &&
+        _cachedLedgerId == ledgerId &&
+        _cachedStrategy == _currentStrategy) {
+      return _cachedProfitData!;
+    }
+
+    // 清除旧缓存
+    _cachedProfitData = null;
+
     final transactionBox = Hive.box<GoldTransaction>('transactions');
 
     // 获取所有买入记录
@@ -31,6 +52,7 @@ class ProfitProvider with ChangeNotifier {
 
     final remainingMap = {for (var buy in allBuys) buy.id: buy.weight};
     final profitHistory = <double>[];
+    final relatedBuysMap = <String, List<GoldTransaction>>{}; // 新增：记录每笔卖出的关联买入
     double totalCost = 0;
     double totalRevenue = 0;
 
@@ -59,17 +81,24 @@ class ProfitProvider with ChangeNotifier {
         totalRevenue += revenue;
         profitHistory.add(revenue - cost);
 
+        // 记录关联买入
+        final relatedBuys = <GoldTransaction>[];
         var remainingToDeduct = sell.weight;
+
         for (final buy in eligibleBuys) {
           final available = remainingMap[buy.id] ?? 0;
           final ratio = available / totalAvailableWeight;
           final intendedDeduct = sell.weight * ratio;
           final deducted = min(available, intendedDeduct);
 
-          remainingMap[buy.id] = available - deducted;
-          remainingToDeduct -= deducted;
+          if (deducted > 0) {
+            relatedBuys.add(buy); // 直接添加原始买入单据
+            remainingMap[buy.id] = available - deducted;
+            remainingToDeduct -= deducted;
+          }
         }
 
+        // 处理浮点精度误差
         if (remainingToDeduct.abs() > 1e-6) {
           for (final buy
               in eligibleBuys.where((buy) => remainingMap[buy.id]! > 0)) {
@@ -79,6 +108,8 @@ class ProfitProvider with ChangeNotifier {
             if (remainingToDeduct == 0) break;
           }
         }
+
+        relatedBuysMap[sell.id] = relatedBuys;
       }
     } else {
       // 其他策略逻辑
@@ -88,6 +119,7 @@ class ProfitProvider with ChangeNotifier {
             .where((buy) => (remainingMap[buy.id] ?? 0) > 0)
             .toList();
 
+        // 按策略排序
         switch (_currentStrategy) {
           case InventoryStrategy.fifo:
             eligibleBuys.sort((a, b) => a.date.compareTo(b.date));
@@ -105,17 +137,25 @@ class ProfitProvider with ChangeNotifier {
             break; // 不会执行到这里
         }
 
+        // 记录关联买入
+        final relatedBuys = <GoldTransaction>[];
         double remaining = sell.weight;
         double sellCost = 0;
+
         for (final buy in eligibleBuys) {
           if (remaining <= 0) break;
           final available = remainingMap[buy.id] ?? 0;
           final used = min(available, remaining);
-          sellCost += used * buy.price;
-          remainingMap[buy.id] = available - used;
-          remaining -= used;
+
+          if (used > 0) {
+            relatedBuys.add(buy);
+            sellCost += used * buy.price;
+            remainingMap[buy.id] = available - used;
+            remaining -= used;
+          }
         }
 
+        relatedBuysMap[sell.id] = relatedBuys;
         final revenue = sell.weight * sell.price;
         totalCost += sellCost;
         totalRevenue += revenue;
@@ -123,12 +163,18 @@ class ProfitProvider with ChangeNotifier {
       }
     }
 
-    return {
+    _cachedProfitData = {
       'sells': sells,
       'profitHistory': profitHistory,
       'totalCost': totalCost,
       'totalRevenue': totalRevenue,
+      'relatedBuysMap': relatedBuysMap,
     };
+
+    _cachedLedgerId = ledgerId;
+    _cachedStrategy = _currentStrategy;
+
+    return _cachedProfitData!;
   }
 
   List<YearProfit> calculateGroupedProfits(String ledgerId) {
@@ -196,111 +242,8 @@ class ProfitProvider with ChangeNotifier {
   }
 
   List<GoldTransaction> findRelatedBuys(String sellId, String ledgerId) {
-    final transactionBox = Hive.box<GoldTransaction>('transactions');
-    final sellTransaction = transactionBox.get(sellId);
-
-    // 空安全检查
-    if (sellTransaction?.type != TransactionType.sell) return [];
-
-    // 获取所有可能关联的买入记录（按当前策略排序）
-    final allBuys = transactionBox.values
-        .where((t) =>
-            t.ledgerId == ledgerId &&
-            t.type == TransactionType.buy &&
-            t.date.isBefore(sellTransaction!.date))
-        .toList()
-      ..sort((a, b) {
-        switch (_currentStrategy) {
-          case InventoryStrategy.fifo:
-            return a.date.compareTo(b.date);
-          case InventoryStrategy.lifo:
-            return b.date.compareTo(a.date);
-          case InventoryStrategy.lowest:
-            return a.price.compareTo(b.price);
-          case InventoryStrategy.highest:
-            return b.price.compareTo(b.price);
-          case InventoryStrategy.average:
-            return 0;
-        }
-      });
-
-    // 模拟库存扣除过程，只记录关联的原始买入单据
-    final relatedBuys = <GoldTransaction>[];
-    final sell = sellTransaction!;
-    double remainingWeight = sell.weight;
-    final availableMap = <String, double>{};
-
-    // 计算每笔买入的剩余可用重量
-    for (final buy in allBuys) {
-      availableMap[buy.id] =
-          buy.weight - _getUsedWeight(buy.id, sellTransaction.date);
-    }
-
-    // 找出实际关联的原始买入单据
-    for (final buy in allBuys) {
-      if (remainingWeight <= 0) break;
-
-      final available = availableMap[buy.id] ?? 0;
-      final used = min(available, remainingWeight);
-
-      if (used > 0) {
-        relatedBuys.add(buy); // 这里直接添加原始买入单据
-        remainingWeight -= used;
-      }
-    }
-
-    return relatedBuys;
-  }
-
-// 辅助方法：计算某买入在指定时间前已被使用的重量
-  double _getUsedWeight(String buyId, DateTime beforeDate) {
-    final transactionBox = Hive.box<GoldTransaction>('transactions');
-    double used = 0;
-
-    // 找出所有在该卖出之前的卖出交易
-    final previousSells = transactionBox.values
-        .where((t) =>
-            t.type == TransactionType.sell && t.date.isBefore(beforeDate))
-        .toList()
-      ..sort((a, b) => a.date.compareTo(b.date)); // 按时间顺序处理
-
-    // 模拟历史扣除过程
-    for (final sell in previousSells) {
-      final relatedBuys = _simulateSellDeduction(sell, sell.ledgerId);
-      used += relatedBuys[buyId] ?? 0;
-    }
-
-    return used;
-  }
-
-// 模拟单笔卖出交易的扣除过程
-  Map<String, double> _simulateSellDeduction(
-      GoldTransaction sell, String ledgerId) {
-    final transactionBox = Hive.box<GoldTransaction>('transactions');
-    final result = <String, double>{};
-
-    final allBuys = transactionBox.values
-        .where((t) =>
-            t.ledgerId == ledgerId &&
-            t.type == TransactionType.buy &&
-            t.date.isBefore(sell.date))
-        .toList()
-      ..sort((a, b) => a.date.compareTo(b.date)); // 默认按FIFO处理
-
-    double remaining = sell.weight;
-    for (final buy in allBuys) {
-      if (remaining <= 0) break;
-
-      final available = buy.weight - (result[buy.id] ?? 0);
-      final used = min(available, remaining);
-
-      if (used > 0) {
-        result[buy.id] = (result[buy.id] ?? 0) + used;
-        remaining -= used;
-      }
-    }
-
-    return result;
+    final data = _calculateProfitBaseData(ledgerId);
+    return data['relatedBuysMap'][sellId] ?? [];
   }
 }
 
