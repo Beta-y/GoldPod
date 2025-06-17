@@ -55,205 +55,226 @@ class _ProfitListState extends State<ProfitScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(2),
       itemCount: profits.length,
       itemBuilder: (context, index) {
         final yearProfit = profits[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          child: ExpansionTile(
-            tilePadding: const EdgeInsets.symmetric(horizontal: 8),
-            dense: true,
-            key: ValueKey(yearProfit.year),
-            initiallyExpanded:
-                _expandedGroups['year_${yearProfit.year}'] ?? true,
-            title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${yearProfit.year}年',
-                  style: const TextStyle(fontSize: 14),
-                ),
-                _buildProfitText(yearProfit.totalProfit),
-              ],
-            ),
+        return _buildYearCard(yearProfit);
+      },
+    );
+  }
+
+  Widget _buildYearCard(YearProfit yearProfit) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent, // 关键修改点
+        ),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+          dense: false,
+          key: ValueKey(yearProfit.year),
+          initiallyExpanded: _expandedGroups['year_${yearProfit.year}'] ?? true,
+          title: Row(
             children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 8, right: 8, bottom: 4),
-                child: Column(
-                  children: yearProfit.monthProfits.map((monthProfit) {
-                    return Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: ExpansionTile(
-                        tilePadding: const EdgeInsets.symmetric(horizontal: 8),
-                        dense: true,
-                        key:
-                            ValueKey('${yearProfit.year}_${monthProfit.month}'),
-                        initiallyExpanded: _expandedGroups[
-                                'month_${yearProfit.year}_${monthProfit.month}'] ??
-                            true,
-                        title: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '${monthProfit.month}月',
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                            _buildProfitText(monthProfit.totalProfit),
-                          ],
-                        ),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(
-                                left: 8, right: 8, bottom: 4),
-                            child: Column(
-                              children: monthProfit.dayProfits.map((dayProfit) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(left: 16),
-                                  child: ExpansionTile(
-                                    tilePadding: const EdgeInsets.symmetric(
-                                        horizontal: 8),
-                                    dense: true,
-                                    key: ValueKey(
-                                        '${yearProfit.year}_${monthProfit.month}_${dayProfit.day}'),
-                                    initiallyExpanded: _expandedGroups[
-                                            'day_${yearProfit.year}_${monthProfit.month}_${dayProfit.day}'] ??
-                                        false,
-                                    title: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          '${dayProfit.day}日',
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                        _buildProfitText(dayProfit.totalProfit),
-                                      ],
-                                    ),
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                            left: 8, right: 8, bottom: 4),
-                                        child: Column(
-                                          children: dayProfit.transactionProfits
-                                              .map((txnProfit) {
-                                            final sellTransaction = Hive.box<
-                                                        GoldTransaction>(
-                                                    'transactions')
-                                                .get(txnProfit.transactionId);
-
-                                            if (sellTransaction == null ||
-                                                sellTransaction.type !=
-                                                    TransactionType.sell) {
-                                              return const SizedBox.shrink();
-                                            }
-
-                                            final relatedBuys =
-                                                provider.findRelatedBuys(
-                                                    sellTransaction.id,
-                                                    ledgerId);
-
-                                            return Padding(
-                                              padding: const EdgeInsets.only(
-                                                  left: 24),
-                                              child: Column(
-                                                children: [
-                                                  _buildTransactionCard(
-                                                    transaction:
-                                                        sellTransaction,
-                                                    isBuy: false,
-                                                  ),
-                                                  ...relatedBuys.map((buy) {
-                                                    return _buildTransactionCard(
-                                                        transaction: buy,
-                                                        isBuy: true);
-                                                  }),
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            top: 2),
-                                                    child: _buildProfitText(
-                                                        txnProfit.profit),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          }).toList(),
-                                        ),
-                                      ),
-                                    ],
-                                    onExpansionChanged: (expanded) {
-                                      setState(() {
-                                        _expandedGroups[
-                                                'day_${yearProfit.year}_${monthProfit.month}_${dayProfit.day}'] =
-                                            expanded;
-                                      });
-                                    },
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ],
-                        onExpansionChanged: (expanded) {
-                          setState(() {
-                            _expandedGroups[
-                                    'month_${yearProfit.year}_${monthProfit.month}'] =
-                                expanded;
-                          });
-                        },
-                      ),
-                    );
-                  }).toList(),
+              Text(
+                '${yearProfit.year}年',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+              const Spacer(),
+              _buildProfitText(yearProfit.totalProfit, fontSize: 16),
             ],
-            onExpansionChanged: (expanded) {
-              setState(() {
-                _expandedGroups['year_${yearProfit.year}'] = expanded;
-              });
-            },
           ),
+          children: [
+            ...yearProfit.monthProfits.map((monthProfit) {
+              return _buildMonthRow(monthProfit, yearProfit.year);
+            })
+          ],
+          onExpansionChanged: (expanded) {
+            setState(() {
+              _expandedGroups['year_${yearProfit.year}'] = expanded;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDayRow(DayProfit dayProfit, int year, int month) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 0, right: 0, bottom: 8),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent, // 关键修改点
+        ),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+          dense: true,
+          key: ValueKey('${year}_${month}_${dayProfit.day}'),
+          title: Row(
+            children: [
+              Text(
+                '${month}月${dayProfit.day}日',
+                style: const TextStyle(fontSize: 14),
+              ),
+              const Spacer(),
+              _buildProfitText(dayProfit.totalProfit),
+            ],
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 8, left: 8, right: 8),
+              child: _buildTransactionsGroup(dayProfit, year, month),
+            )
+          ],
+          onExpansionChanged: (expanded) {
+            setState(() {
+              _expandedGroups['day_${year}_${month}_${dayProfit.day}'] =
+                  expanded;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMonthRow(MonthProfit monthProfit, int year) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent, // 关键修改点
+        ),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          dense: true,
+          key: ValueKey('${year}_${monthProfit.month}'),
+          title: Row(
+            children: [
+              Text(
+                '${monthProfit.month}月',
+                style: const TextStyle(fontSize: 14),
+              ),
+              const Spacer(),
+              _buildProfitText(monthProfit.totalProfit),
+            ],
+          ),
+          children: [
+            ...monthProfit.dayProfits.map((dayProfit) {
+              return _buildDayRow(dayProfit, year, monthProfit.month);
+            })
+          ],
+          onExpansionChanged: (expanded) {
+            setState(() {
+              _expandedGroups['month_${year}_${monthProfit.month}'] = expanded;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionsGroup(DayProfit dayProfit, int year, int month) {
+    final provider = context.watch<ProfitProvider>();
+    final ledgerId = Provider.of<String>(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: dayProfit.transactionProfits.map((txnProfit) {
+        final sellTransaction = Hive.box<GoldTransaction>('transactions')
+            .get(txnProfit.transactionId);
+
+        if (sellTransaction == null ||
+            sellTransaction.type != TransactionType.sell) {
+          return const SizedBox.shrink();
+        }
+
+        final relatedBuys =
+            provider.findRelatedBuys(sellTransaction.id, ledgerId);
+
+        return Column(
+          children: [
+            _buildTransactionCard(
+              transaction: sellTransaction,
+              isBuy: false,
+            ),
+            ...relatedBuys.map((buy) {
+              return _buildTransactionCard(
+                transaction: buy,
+                isBuy: true,
+              );
+            }),
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Text(
+                    '单笔利润: ',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  _buildProfitText(txnProfit.profit),
+                ],
+              ),
+            ),
+          ],
         );
-      },
+      }).toList(),
     );
   }
 
   Widget _buildTransactionCard({
     required GoldTransaction transaction,
     required bool isBuy,
-    String? extraInfo,
   }) {
+    final icon = isBuy
+        ? Icon(Icons.arrow_upward, color: Colors.green[700], size: 18)
+        : Icon(Icons.arrow_downward, color: Colors.red[700], size: 18);
+
+    final label = isBuy ? '买入' : '卖出';
+    final formattedWeight =
+        NumberFormat("#,##0.0000").format(transaction.weight);
+    final formattedAmount = NumberFormat("#,##0.00").format(transaction.amount);
+    final formattedPrice = NumberFormat("#,##0.00").format(transaction.price);
+    final date = DateFormat('MM-dd HH:mm').format(transaction.date);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: Colors.grey.shade200, width: 1),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    Icon(
-                      isBuy ? Icons.arrow_upward : Icons.arrow_downward,
-                      color: isBuy ? Colors.green : Colors.red,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
+                    icon,
+                    const SizedBox(width: 6),
                     Text(
-                      '${isBuy ? '买入' : '卖出'} ${NumberFormat("#,##0.0000").format(transaction.weight)}g',
+                      '$label $formattedWeight g',
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
                 Text(
-                  '￥${NumberFormat("#,##0.00").format(transaction.amount)}',
+                  '￥$formattedAmount',
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -263,16 +284,16 @@ class _ProfitListState extends State<ProfitScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '￥${NumberFormat("#,##0.00").format(transaction.price)}/g',
+                  '单价 ￥$formattedPrice/g',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: Colors.grey[600],
                   ),
                 ),
                 Text(
-                  DateFormat('yyyy-MM-dd HH:mm:ss').format(transaction.date),
+                  date,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -280,24 +301,13 @@ class _ProfitListState extends State<ProfitScreen> {
             ),
             if (transaction.note != null && transaction.note!.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 6),
+                padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   '备注: ${transaction.note}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: Colors.grey[600],
-                  ),
-                ),
-              ),
-            if (extraInfo != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  extraInfo,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue[700],
-                    fontWeight: FontWeight.bold,
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ),
@@ -307,13 +317,14 @@ class _ProfitListState extends State<ProfitScreen> {
     );
   }
 
-  Widget _buildProfitText(double profit) {
+  Widget _buildProfitText(double profit, {double fontSize = 14}) {
     final isPositive = profit >= 0;
     return Text(
       '${isPositive ? '+' : ''}${NumberFormat("#,##0.00").format(profit)}',
       style: TextStyle(
-        color: isPositive ? Colors.green : Colors.red,
+        color: isPositive ? Colors.green[700] : Colors.red[700],
         fontWeight: FontWeight.bold,
+        fontSize: fontSize,
       ),
     );
   }
