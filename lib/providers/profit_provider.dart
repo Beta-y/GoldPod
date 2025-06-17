@@ -9,7 +9,7 @@ class ProfitProvider with ChangeNotifier {
   String? _cachedLedgerId;
   InventoryStrategy? _cachedStrategy;
 
-  InventoryStrategy _currentStrategy = InventoryStrategy.fifo;
+  InventoryStrategy _currentStrategy = InventoryStrategy.lifo;
 
   InventoryStrategy get currentStrategy => _currentStrategy;
 
@@ -177,7 +177,9 @@ class ProfitProvider with ChangeNotifier {
     return _cachedProfitData!;
   }
 
-  List<YearProfit> calculateGroupedProfits(String ledgerId) {
+  List<YearProfit> calculateGroupedProfits(
+      String ledgerId, InventoryStrategy strategy) {
+    setStrategy(strategy);
     final data = _calculateProfitBaseData(ledgerId);
     final sells = data['sells'] as List<GoldTransaction>;
     final profitHistory = data['profitHistory'] as List<double>;

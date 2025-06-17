@@ -804,7 +804,7 @@ class GoldAssistantScreen extends StatelessWidget {
                   ),
                   Tab(
                     child: Text(
-                      '利润',
+                      '收益',
                       style: TextStyle(
                         color: Colors.white,
                       ),
