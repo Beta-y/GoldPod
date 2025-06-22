@@ -72,8 +72,8 @@ class _ProfitListState extends State<ProfitScreen> {
           dividerColor: Colors.transparent, // 关键修改点
         ),
         child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-          dense: false,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+          dense: true,
           key: ValueKey(yearProfit.year),
           initiallyExpanded: _expandedGroups['year_${yearProfit.year}'] ?? true,
           title: Row(
@@ -106,13 +106,13 @@ class _ProfitListState extends State<ProfitScreen> {
 
   Widget _buildDayRow(DayProfit dayProfit, int year, int month) {
     return Padding(
-      padding: const EdgeInsets.only(left: 0, right: 0, bottom: 8),
+      padding: const EdgeInsets.only(left: 0, right: 0, bottom: 0),
       child: Theme(
         data: Theme.of(context).copyWith(
           dividerColor: Colors.transparent, // 关键修改点
         ),
         child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
           dense: true,
           key: ValueKey('${year}_${month}_${dayProfit.day}'),
           title: Row(
@@ -150,7 +150,7 @@ class _ProfitListState extends State<ProfitScreen> {
           dividerColor: Colors.transparent, // 关键修改点
         ),
         child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
           dense: true,
           key: ValueKey('${year}_${monthProfit.month}'),
           title: Row(
@@ -202,7 +202,8 @@ class _ProfitListState extends State<ProfitScreen> {
               transaction: sellTransaction,
               isBuy: false,
             ),
-            ...relatedBuys.map((buy) {
+            ...relatedBuys.map((entry) {
+              final buy = entry['buy'] as GoldTransaction;
               return _buildTransactionCard(
                 transaction: buy,
                 isBuy: true,
@@ -322,7 +323,7 @@ class _ProfitListState extends State<ProfitScreen> {
     return Text(
       '${isPositive ? '+' : ''}${NumberFormat("#,##0.00").format(profit)}',
       style: TextStyle(
-        color: isPositive ? Colors.green[700] : Colors.red[700],
+        color: isPositive ? Colors.red[700] : Colors.green[700],
         fontWeight: FontWeight.bold,
         fontSize: fontSize,
       ),

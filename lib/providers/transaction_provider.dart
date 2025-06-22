@@ -20,7 +20,7 @@ class TransactionProvider extends ChangeNotifier {
   }
 
   // 修改：统一使用Hive作为数据源，移除_ledger
-  InventoryStrategy _strategy = InventoryStrategy.lifo;
+  InventoryStrategy _strategy = InventoryStrategy.lowest;
 
   // 获取当前策略
   InventoryStrategy get currentStrategy => _strategy;

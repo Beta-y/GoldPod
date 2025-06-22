@@ -124,8 +124,11 @@ class InventoryScreen extends StatelessWidget {
                     children: [
                       Text(
                         '¥${profits['latestProfit']!.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: Colors.green,
+                        style: TextStyle(
+                          color: profits['latestProfit']! >
+                                  profits['previousProfit']!
+                              ? Colors.red[700] // 上涨显示红色
+                              : Colors.green[700], // 下跌显示绿色
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
                         ),

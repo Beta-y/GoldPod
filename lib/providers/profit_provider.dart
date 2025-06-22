@@ -9,7 +9,7 @@ class ProfitProvider with ChangeNotifier {
   String? _cachedLedgerId;
   InventoryStrategy? _cachedStrategy;
 
-  InventoryStrategy _currentStrategy = InventoryStrategy.lifo;
+  InventoryStrategy _currentStrategy = InventoryStrategy.lowest;
 
   InventoryStrategy get currentStrategy => _currentStrategy;
 
@@ -52,7 +52,8 @@ class ProfitProvider with ChangeNotifier {
 
     final remainingMap = {for (var buy in allBuys) buy.id: buy.weight};
     final profitHistory = <double>[];
-    final relatedBuysMap = <String, List<GoldTransaction>>{}; // 新增：记录每笔卖出的关联买入
+    final relatedBuysMap =
+        <String, List<Map<String, dynamic>>>{}; // 修改为记录买入单和对应克重
     double totalCost = 0;
     double totalRevenue = 0;
 
@@ -81,8 +82,8 @@ class ProfitProvider with ChangeNotifier {
         totalRevenue += revenue;
         profitHistory.add(revenue - cost);
 
-        // 记录关联买入
-        final relatedBuys = <GoldTransaction>[];
+        // 记录关联买入及对应克重
+        final relatedBuys = <Map<String, dynamic>>[];
         var remainingToDeduct = sell.weight;
 
         for (final buy in eligibleBuys) {
@@ -92,7 +93,10 @@ class ProfitProvider with ChangeNotifier {
           final deducted = min(available, intendedDeduct);
 
           if (deducted > 0) {
-            relatedBuys.add(buy); // 直接添加原始买入单据
+            relatedBuys.add({
+              'buy': buy,
+              'weightUsed': deducted, // 记录实际使用的克重
+            });
             remainingMap[buy.id] = available - deducted;
             remainingToDeduct -= deducted;
           }
@@ -103,6 +107,10 @@ class ProfitProvider with ChangeNotifier {
           for (final buy
               in eligibleBuys.where((buy) => remainingMap[buy.id]! > 0)) {
             final adjust = min(remainingMap[buy.id]!, remainingToDeduct);
+            relatedBuys.add({
+              'buy': buy,
+              'weightUsed': adjust, // 记录调整的克重
+            });
             remainingMap[buy.id] = remainingMap[buy.id]! - adjust;
             remainingToDeduct -= adjust;
             if (remainingToDeduct == 0) break;
@@ -137,8 +145,8 @@ class ProfitProvider with ChangeNotifier {
             break; // 不会执行到这里
         }
 
-        // 记录关联买入
-        final relatedBuys = <GoldTransaction>[];
+        // 记录关联买入及对应克重
+        final relatedBuys = <Map<String, dynamic>>[];
         double remaining = sell.weight;
         double sellCost = 0;
 
@@ -148,7 +156,10 @@ class ProfitProvider with ChangeNotifier {
           final used = min(available, remaining);
 
           if (used > 0) {
-            relatedBuys.add(buy);
+            relatedBuys.add({
+              'buy': buy,
+              'weightUsed': used, // 记录实际使用的克重
+            });
             sellCost += used * buy.price;
             remainingMap[buy.id] = available - used;
             remaining -= used;
@@ -243,7 +254,7 @@ class ProfitProvider with ChangeNotifier {
       ..sort((a, b) => b.year.compareTo(a.year));
   }
 
-  List<GoldTransaction> findRelatedBuys(String sellId, String ledgerId) {
+  List<Map<String, dynamic>> findRelatedBuys(String sellId, String ledgerId) {
     final data = _calculateProfitBaseData(ledgerId);
     return data['relatedBuysMap'][sellId] ?? [];
   }
