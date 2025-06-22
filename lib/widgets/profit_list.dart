@@ -81,7 +81,7 @@ class _ProfitListState extends State<ProfitScreen> {
               Text(
                 '${yearProfit.year}年',
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -119,7 +119,7 @@ class _ProfitListState extends State<ProfitScreen> {
             children: [
               Text(
                 '${month}月${dayProfit.day}日',
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 16),
               ),
               const Spacer(),
               _buildProfitText(dayProfit.totalProfit),
@@ -157,7 +157,7 @@ class _ProfitListState extends State<ProfitScreen> {
             children: [
               Text(
                 '${monthProfit.month}月',
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 16),
               ),
               const Spacer(),
               _buildProfitText(monthProfit.totalProfit),
@@ -207,6 +207,7 @@ class _ProfitListState extends State<ProfitScreen> {
               return _buildTransactionCard(
                 transaction: buy,
                 isBuy: true,
+                usedWeight: entry['weightUsed'], // 传入使用的克重
               );
             }),
             Padding(
@@ -231,6 +232,7 @@ class _ProfitListState extends State<ProfitScreen> {
   Widget _buildTransactionCard({
     required GoldTransaction transaction,
     required bool isBuy,
+    double? usedWeight,
   }) {
     final icon = isBuy
         ? Icon(Icons.arrow_upward, color: Colors.green[700], size: 18)
@@ -242,6 +244,12 @@ class _ProfitListState extends State<ProfitScreen> {
     final formattedAmount = NumberFormat("#,##0.00").format(transaction.amount);
     final formattedPrice = NumberFormat("#,##0.00").format(transaction.price);
     final date = DateFormat('MM-dd HH:mm').format(transaction.date);
+
+    String formatUsedWeight(double? weight) {
+      if (weight == null) return '';
+      if (weight < 0.00005) return '< 0.0001g';
+      return '${NumberFormat("#,##0.0000").format(weight)}g';
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -263,7 +271,7 @@ class _ProfitListState extends State<ProfitScreen> {
                     icon,
                     const SizedBox(width: 6),
                     Text(
-                      '$label $formattedWeight g',
+                      '$label ${formattedWeight}g',
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
@@ -300,6 +308,17 @@ class _ProfitListState extends State<ProfitScreen> {
                 ),
               ],
             ),
+            if (isBuy && usedWeight != null) // 新增：显示被使用的克重
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '本次卖出: ${formatUsedWeight(usedWeight)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ),
             if (transaction.note != null && transaction.note!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),

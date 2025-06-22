@@ -202,6 +202,9 @@ class InventoryScreen extends StatelessWidget {
 
     // 辅助函数：格式化数字，添加前导空格
     String formatNumber(double value, int maxIntegerDigits) {
+      if (value < 0.00005) {
+        return '< 0.0001';
+      }
       final integerDigits = value.toStringAsFixed(0).length;
       final leadingSpaces = ' ' * (maxIntegerDigits - integerDigits);
       return '$leadingSpaces${value.toStringAsFixed(4)}';
@@ -307,24 +310,22 @@ class InventoryScreen extends StatelessWidget {
                     ),
                     if (isReduced) ...[
                       const SizedBox(height: 4),
-                      if ((item.transaction.weight - item.remainingWeight) >=
-                          0.00005)
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              const TextSpan(text: '卖出: '),
-                              TextSpan(
-                                text:
-                                    '${formatNumber(item.transaction.weight - item.remainingWeight, maxIntegerDigits)}g',
-                              ),
-                            ],
-                          ),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: const Color.fromARGB(255, 255, 0, 0),
-                            fontSize: 12,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            const TextSpan(text: '卖出: '),
+                            TextSpan(
+                              text:
+                                  '${formatNumber(item.transaction.weight - item.remainingWeight, maxIntegerDigits)}g',
+                            ),
+                          ],
                         ),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: const Color.fromARGB(255, 255, 0, 0),
+                          fontSize: 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ],
                 ),
